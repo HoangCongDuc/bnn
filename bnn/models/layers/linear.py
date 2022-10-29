@@ -21,7 +21,7 @@ class Linear(BNNModule):
         self.out_features = out_features
 
         weight_prior_mean = torch.zeros((out_features, in_features), **factory_kwargs)
-        weight_prior_std = torch.ones((out_features, in_features), **factory_kwargs) * 2
+        weight_prior_std = torch.ones((out_features, in_features), **factory_kwargs)
         self.register_buffer('weight_prior_mean', weight_prior_mean, False)
         self.register_buffer('weight_prior_std', weight_prior_std, False)
 
@@ -30,7 +30,7 @@ class Linear(BNNModule):
 
         if bias:
             bias_prior_mean = torch.zeros(out_features, **factory_kwargs)
-            bias_prior_std = torch.ones(out_features, **factory_kwargs) * 2
+            bias_prior_std = torch.ones(out_features, **factory_kwargs)
             self.register_buffer('bias_prior_mean', bias_prior_mean, False)
             self.register_buffer('bias_prior_std', bias_prior_std, False)
 
