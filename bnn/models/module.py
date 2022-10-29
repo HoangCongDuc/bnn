@@ -2,6 +2,8 @@ import torch
 from torch.nn import Module
 
 
+__all__ = ['BNNModule']
+
 class BNNModule(Module):
     def __init__(self):
         super().__init__()
