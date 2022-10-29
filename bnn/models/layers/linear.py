@@ -20,19 +20,19 @@ class Linear(BNNModule):
         self.in_features = in_features
         self.out_features = out_features
 
-        self.weight_prior_mean = torch.zeros((out_features, in_features), **factory_kwargs)
-        self.weight_prior_std = torch.ones((out_features, in_features), **factory_kwargs)
-        self.register_buffer('weight_prior_mean', self.weight_prior_mean, False)
-        self.register_buffer('weight_prior_std', self.weight_prior_std, False)
+        weight_prior_mean = torch.zeros((out_features, in_features), **factory_kwargs)
+        weight_prior_std = torch.ones((out_features, in_features), **factory_kwargs) * 2
+        self.register_buffer('weight_prior_mean', weight_prior_mean, False)
+        self.register_buffer('weight_prior_std', weight_prior_std, False)
 
         self.weight_posteiror_mean = nn.Parameter(torch.empty((out_features, in_features), **factory_kwargs))
         self.weight_posteiror_rho = nn.Parameter(torch.empty((out_features, in_features), **factory_kwargs))
 
         if bias:
-            self.bias_prior_mean = torch.zeros(out_features, **factory_kwargs)
-            self.bias_prior_std = torch.ones(out_features, **factory_kwargs)
-            self.register_buffer('bias_prior_mean', self.bias_prior_mean, False)
-            self.register_buffer('bias_prior_std', self.bias_prior_std, False)
+            bias_prior_mean = torch.zeros(out_features, **factory_kwargs)
+            bias_prior_std = torch.ones(out_features, **factory_kwargs) * 2
+            self.register_buffer('bias_prior_mean', bias_prior_mean, False)
+            self.register_buffer('bias_prior_std', bias_prior_std, False)
 
             self.bias_posteiror_mean = nn.Parameter(torch.empty(out_features, **factory_kwargs))
             self.bias_posteiror_rho = nn.Parameter(torch.empty(out_features, **factory_kwargs))
