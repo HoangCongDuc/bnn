@@ -9,6 +9,9 @@ from torch import Tensor
 
 from ..module import BNNModule
 
+
+__all__ = ['Linear']
+
 class Linear(BNNModule):
     def __init__(self, in_features: int, out_features: int, bias: bool = True,
                  device=None, dtype=None) -> None:
@@ -17,21 +20,19 @@ class Linear(BNNModule):
         self.in_features = in_features
         self.out_features = out_features
 
-        weight_prior_mean = torch.zeros((out_features, in_features), **factory_kwargs)
-        weight_prior_std = torch.ones((out_features, in_features), **factory_kwargs)
-        self.weight_prior = D.Independent(D.Normal(weight_prior_mean, weight_prior_std), 2)
-        self.register_buffer('weight_prior_mean', weight_prior_mean, False)
-        self.register_buffer('weight_prior_std', weight_prior_std, False)
+        self.weight_prior_mean = torch.zeros((out_features, in_features), **factory_kwargs)
+        self.weight_prior_std = torch.ones((out_features, in_features), **factory_kwargs)
+        self.register_buffer('weight_prior_mean', self.weight_prior_mean, False)
+        self.register_buffer('weight_prior_std', self.weight_prior_std, False)
 
         self.weight_posteiror_mean = nn.Parameter(torch.empty((out_features, in_features), **factory_kwargs))
         self.weight_posteiror_rho = nn.Parameter(torch.empty((out_features, in_features), **factory_kwargs))
 
         if bias:
-            bias_prior_mean = torch.zeros(out_features, **factory_kwargs)
-            bias_prior_std = torch.ones(out_features, **factory_kwargs)
-            self.bias_prior = D.Independent(D.Normal(bias_prior_mean, bias_prior_std), 1)
-            self.register_buffer('bias_prior_mean', bias_prior_mean, False)
-            self.register_buffer('bias_prior_std', bias_prior_std, False)
+            self.bias_prior_mean = torch.zeros(out_features, **factory_kwargs)
+            self.bias_prior_std = torch.ones(out_features, **factory_kwargs)
+            self.register_buffer('bias_prior_mean', self.bias_prior_mean, False)
+            self.register_buffer('bias_prior_std', self.bias_prior_std, False)
 
             self.bias_posteiror_mean = nn.Parameter(torch.empty(out_features, **factory_kwargs))
             self.bias_posteiror_rho = nn.Parameter(torch.empty(out_features, **factory_kwargs))
@@ -64,9 +65,11 @@ class Linear(BNNModule):
 
     def _kl(self) -> Tensor:
         posterior = self._get_posterior()
-        kl = D.kl_divergence(posterior['weight'], self.weight_prior)
+        weight_prior = D.Independent(D.Normal(self.weight_prior_mean, self.weight_prior_std), 2)
+        kl = D.kl_divergence(posterior['weight'], weight_prior)
         if self.use_bias:
-            kl = kl + D.kl_divergence(posterior['bias'], self.bias_prior)
+            bias_prior = D.Independent(D.Normal(self.bias_prior_mean, self.bias_prior_std), 1)
+            kl = kl + D.kl_divergence(posterior['bias'], bias_prior)
         return kl
 
     def forward(self, input: Tensor) -> Tensor:
