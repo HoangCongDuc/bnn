@@ -1,66 +1,79 @@
-# from ..module import BNNModule
-# from torch import Tensor
+import math
+from typing import Dict
 
-
-# class Linear(BNNModule):
-#     def __init__(self, **kwargs):
-#         super().__init__()
-
-#     def _kl(self) -> Tensor:
-#         pass
-
-#     def _sample_weight(self) -> Tensor:
-#         pass
-
-#     def forward(self, input: Tensor) -> Tensor:
-#         pass
 import torch
 import torch.nn as nn
-import torch.functional as F
+import torch.nn.functional as F
+import torch.distributions as D
+from torch import Tensor
 
-from ..gaussian import Gaussian, ScaleMixtureGaussian
+from ..module import BNNModule
 
-
-class BayesianLinear(nn.Module):
-    def __init__(self, in_features, out_features, pi, sigma_1, sigma_2, device = 'cpu'):
+class Linear(BNNModule):
+    def __init__(self, in_features: int, out_features: int, bias: bool = True,
+                 device=None, dtype=None) -> None:
+        factory_kwargs = {'device': device, 'dtype': dtype}
         super().__init__()
-
         self.in_features = in_features
         self.out_features = out_features
 
-        # Weight parameters
-        self.weight_mu = nn.Parameter(torch.Tensor(out_features, in_features).uniform_(-0.2, 0.2)) # do we need to modify range here
-        self.weight_rho = nn.Parameter(torch.Tensor(out_features, in_features).uniform_(-5,-4)) # de we need to modify range here
-        self.weight = Gaussian(self.weight_mu, self.weight_rho, device)
+        weight_prior_mean = torch.zeros((out_features, in_features), **factory_kwargs)
+        weight_prior_std = torch.ones((out_features, in_features), **factory_kwargs)
+        self.weight_prior = D.Independent(D.Normal(weight_prior_mean, weight_prior_std), 2)
+        self.register_buffer('weight_prior_mean', weight_prior_mean, False)
+        self.register_buffer('weight_prior_std', weight_prior_std, False)
+
+        self.weight_posteiror_mean = nn.Parameter(torch.empty((out_features, in_features), **factory_kwargs))
+        self.weight_posteiror_rho = nn.Parameter(torch.empty((out_features, in_features), **factory_kwargs))
+
+        if bias:
+            bias_prior_mean = torch.zeros(out_features, **factory_kwargs)
+            bias_prior_std = torch.ones(out_features, **factory_kwargs)
+            self.bias_prior = D.Independent(D.Normal(bias_prior_mean, bias_prior_std), 1)
+            self.register_buffer('bias_prior_mean', bias_prior_mean, False)
+            self.register_buffer('bias_prior_std', bias_prior_std, False)
+
+            self.bias_posteiror_mean = nn.Parameter(torch.empty(out_features, **factory_kwargs))
+            self.bias_posteiror_rho = nn.Parameter(torch.empty(out_features, **factory_kwargs))
+        self.use_bias = bias
         
-        # Bias parameters
-        self.bias_mu = nn.Parameter(torch.Tensor(out_features).uniform_(-0.2, 0.2))
-        self.bias_rho = nn.Parameter(torch.Tensor(out_features).uniform_(-5,-4))
-        self.bias = Gaussian(self.bias_mu, self.bias_rho, device)
-        # Prior distributions
+        self.reset_parameters()
 
-        self.pi = pi
-        self.sigma_2 = sigma_1
-        self.sigma_2 = sigma_2 
+    def reset_parameters(self) -> None:
+        nn.init.kaiming_uniform_(self.weight_posteiror_mean, a=math.sqrt(5))
+        nn.init.normal_(self.weight_posteiror_rho, mean=-3, std=0.1)
+        if self.use_bias:
+            fan_in, _ = nn.init._calculate_fan_in_and_fan_out(self.weight_posteiror_mean)
+            bound = 1 / math.sqrt(fan_in) if fan_in > 0 else 0
+            nn.init.uniform_(self.bias_posteiror_mean, -bound, bound)
+            nn.init.normal_(self.bias_posteiror_rho, mean=-3, std=0.1)
 
-        self.device = device
+    def _get_posterior(self) -> Dict[str, D.Distribution]:
+        result = dict()
 
-        self.weight_prior = ScaleMixtureGaussian(pi, sigma_1, sigma_2)
-        self.bias_prior = ScaleMixtureGaussian(pi, sigma_1, sigma_2)
-        self.log_prior = 0
-        self.log_variational_posterior = 0
+        weight_posterior_std = F.softplus(self.weight_posteiror_rho)
+        weight = D.Independent(D.Normal(self.weight_posteiror_mean, weight_posterior_std), 2)
+        result['weight'] = weight
+        
+        if self.use_bias:
+            bias_posterior_std = F.softplus(self.bias_posteiror_rho)
+            bias = D.Independent(D.Normal(self.bias_posteiror_mean, bias_posterior_std), 1)
+            result['bias'] = bias
+        
+        return result
 
-    def forward(self, input, sample=False, calculate_log_probs=False):
-        if self.training or sample:
-            weight = self.weight.sample()
-            bias = self.bias.sample()
+    def _kl(self) -> Tensor:
+        posterior = self._get_posterior()
+        kl = D.kl_divergence(posterior['weight'], self.weight_prior)
+        if self.use_bias:
+            kl = kl + D.kl_divergence(posterior['bias'], self.bias_prior)
+        return kl
+
+    def forward(self, input: Tensor) -> Tensor:
+        posterior = self._get_posterior()
+        weight = posterior['weight'].rsample()
+        if self.use_bias:
+            bias = posterior['bias'].rsample()
         else:
-            weight = self.weight.mu
-            bias = self.bias.mu
-        if self.training or calculate_log_probs:
-            self.log_prior = self.weight_prior.log_prob(weight) + self.bias_prior.log_prob(bias)
-            self.log_variational_posterior = self.weight.log_prob(weight) + self.bias.log_prob(bias)
-        else:
-            self.log_prior, self.log_variational_posterior = 0, 0
-
+            bias = None
         return F.linear(input, weight, bias)
