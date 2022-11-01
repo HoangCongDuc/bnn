@@ -14,7 +14,7 @@ __all__ = ['Linear']
 
 class Linear(BNNModule):
     def __init__(self, in_features: int, out_features: int, bias: bool = True,
-                 device=None, dtype=None) -> None:
+                 device=None, dtype=torch.float32) -> None:
         factory_kwargs = {'device': device, 'dtype': dtype}
         super().__init__()
         self.in_features = in_features
