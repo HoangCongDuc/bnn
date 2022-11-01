@@ -71,7 +71,7 @@ class Trainer:
         while self.current_epoch < self.num_epochs:
             if self.current_epoch % self.val_iterval == 0:
                 self.validation() 
-            self.current_iter = 0
+            self.current_iter = 1
             self.train_one_epoch()
             self.scheduler.step()
             self.current_epoch += 1
@@ -84,7 +84,7 @@ class Trainer:
             returns:
                 weight: weight of current batch
         '''
-        weight = (2 ** (self.num_batches - self.current_iter)) / (2**(self.num_batches - 1))
+        weight = (2 ** (self.num_batches - self.current_iter)) / (2**self.num_batches - 1)
         return weight
     
     def train_one_epoch(self):
@@ -94,9 +94,9 @@ class Trainer:
             self.model.zero_grad()
             kl_div = self.model.KL()
             nll = self.model.nll(data, self.num_samples)
-            
             # reweight loss by current weight of KL
-            elbo = self.weight_kl() * kl_div + nll
+            weight_kl = self.weight_kl()
+            elbo =  weight_kl * kl_div + nll
             elbo.backward()
             if self.current_iter % 20 == 0:
                 self.logger.info(f'step: {self.current_iter}/{self.num_epochs} -  EBLO: {elbo.item():.4f} - KL: {kl_div.item():.4f} - NLL: {nll.item():.4f}')

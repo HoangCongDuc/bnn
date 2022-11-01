@@ -28,8 +28,6 @@ class WineDataset(torchdata.Dataset):
 
         for file in self.files:
             data = pd.read_csv(file, delimiter=';')
-            data['quality'] = pd.to_numeric(data['quality'], downcast='float')
-            print(data.dtypes)
             all_data.append(data)
 
             train_df, test_df = train_test_split(data, test_size=test_size, random_state=seed)
@@ -67,7 +65,6 @@ class WineDataset(torchdata.Dataset):
         label = item[-1]
         
         input = torch.from_numpy(input).float()
-        # label = torch.from_numpy(label).float()
 
         return {"inputs": input, "targets": label}
 
