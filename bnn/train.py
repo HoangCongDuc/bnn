@@ -89,19 +89,17 @@ class Trainer:
     
     def train_one_epoch(self):
         self.model.train()
-        for data in tqdm(self.train_loader):
-            
-            print(data['inputs'])
-            print(data['targets'])
-
+        for data in self.train_loader:
+            data['targets'] = data['targets'].type(torch.FloatTensor)
             self.model.zero_grad()
             kl_div = self.model.KL()
-            print(type(kl_div))
             nll = self.model.nll(data, self.num_samples)
-            print(type(nll))
+            
             # reweight loss by current weight of KL
             elbo = self.weight_kl() * kl_div + nll
             elbo.backward()
+            if self.current_iter % 20 == 0:
+                self.logger.info(f'step: {self.current_iter}/{self.num_epochs} -  EBLO: {elbo.item():.4f} - KL: {kl_div.item():.4f} - NLL: {nll.item():.4f}')
             self.optimizer.step()
             self.current_iter += 1
             
