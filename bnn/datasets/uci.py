@@ -1,16 +1,22 @@
+import sys
+sys.path.append("..") # Adds higher directory to python modules path.
+from utils import worker_init_reset_seed
+
 from operator import concat
-import os 
+import os
+from tkinter.messagebox import NO 
 import torch
 import numpy as np
 import pandas as pd
 import glob
 
 from sklearn.model_selection import train_test_split
-
-from torch.utils.data import Dataset
+import torch.utils.data as torchdata
 from torchvision import transforms
 
-class WineDataset(Dataset):
+ROOT_UCI = '/lclhome/cnguy049/projects/bnn/bnn/data/uci_wine'
+
+class WineDataset(torchdata.Dataset):
     def __init__(self, root_dir, test_size=0.2, train=True, seed = 42) -> None:
         super().__init__()
 
@@ -21,21 +27,29 @@ class WineDataset(Dataset):
         all_data = []
 
         for file in self.files:
-            data = pd.read_csv(file)
-            train, test = train_test_split(data, test_size=test_size, random_state=seed)
-            all_data = data.append(data)
-            data_train.append(train)
-            data_test.append(test)
+            data = pd.read_csv(file, delimiter=';')
+            data['quality'] = data['quality'].astype(dtype ='float')
+            all_data.append(data)
+
+            train_df, test_df = train_test_split(data, test_size=test_size, random_state=seed)
+            data_train.append(train_df)
+            data_test.append(test_df)
         
         all_data = pd.concat(all_data, ignore_index=True, sort=False)
         data_train = pd.concat(data_train, ignore_index=True, sort=False)
         data_test = pd.concat(data_test, ignore_index=True, sort=False)
 
-        # normalized dataset 
+        print(f"Number of records: {len(all_data)}")
+        print(f"Number of training data: {len(data_train)}")
+        print(f"Number of validation data: {(len(data_test))}")
 
-        for col in data[:-1]:
-            data_train[col] = (data_train[col] - data[col].mean()) / data[col].std()
-            data_test[col] = (data_test[col] - data[col].mean()) / data[col].std()
+        # normalized dataset 
+        
+        for col in all_data.columns[:-1]:
+            data_train[col] = (data_train[col] - all_data[col].mean()) / all_data[col].std()
+            data_test[col] = (data_test[col] - all_data[col].mean()) / all_data[col].std()
+        
+        # print(train)
 
         if train:
             self.data = data_train
@@ -54,4 +68,34 @@ class WineDataset(Dataset):
         # input to tensor
         input = torch.Tensor(input)
 
-        return {"input": input, "gt": label}
+        return {"inputs": input, "targets": label}
+
+
+def build_uci_loaders(args):
+    
+
+    num_workers = args.num_workers
+    batch_size = args.batch_size
+
+    train_dataset = WineDataset(root_dir=ROOT_UCI, test_size=args.test_size, seed=args.seed)
+    valid_dataset = WineDataset(root_dir=ROOT_UCI, test_size=args.test_size, train=False, seed=args.seed)
+
+    train_sampler = torchdata.RandomSampler(train_dataset)
+    valid_sampler = torchdata.SequentialSampler(valid_dataset)
+
+    train_loader = torchdata.DataLoader(
+                        train_dataset, 
+                        batch_size, 
+                        sampler=train_sampler,
+                        num_workers=num_workers,
+                        worker_init_fn=worker_init_reset_seed,
+                        drop_last=True
+                        )
+    valid_loader = torchdata.DataLoader(
+                        valid_dataset,
+                        batch_size,
+                        sampler=valid_sampler,
+                        num_workers=num_workers,
+                        )
+
+    return train_loader, valid_loader

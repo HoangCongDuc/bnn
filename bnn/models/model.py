@@ -8,7 +8,7 @@ from .layers import Linear
 class MLP(BNNModule):
     def __init__(self):
         super().__init__()
-        self.linear1 = Linear(in_features=12, out_features=20)
+        self.linear1 = Linear(in_features=11, out_features=20)
         self.linear2 = Linear(in_features=20, out_features=20)
         self.linear3 = Linear(in_features=20, out_features=1)
         self.loss_func = nn.MSELoss(reduction='sum')
