@@ -7,7 +7,7 @@ import torch
 import numpy as np
 import random
 from datetime import datetime
-
+from torchmetrics import MeanSquaredError, Accuracy
 
 def seed_all(seed=None):
     if seed is None:
@@ -146,8 +146,10 @@ def get_metric(task_name):
         return accuracy
 
 
-def mse():
-    return 0
+def mse(targets, preds):
+    mse = MeanSquaredError()
+    return mse(targets, preds)
 
-def accuracy():
-    return 0
+def accuracy(targets, preds):
+    accuracy = Accuracy(targets, preds)
+    return accuracy

@@ -1,7 +1,6 @@
+from matplotlib.pyplot import axis
 import torch
-import torch.nn as nn
 from utils import *
-from tqdm import tqdm
 from models import MLP
 from datasets import build_uci_loaders, build_mnist_loaders
 from torch.utils.data import DataLoader
@@ -34,6 +33,8 @@ class Trainer:
         self.optimizer = get_optimizer(self.model, args)
         self.scheduler = get_scheduler(self.optimizer, args)
 
+        self.task = args.task
+        self.kl_reweight = False
         self.val_iterval = 2
         self.num_epochs = args.num_epochs
         self.num_samples = args.num_samples
@@ -42,7 +43,7 @@ class Trainer:
         
         self.device = torch.device('cuda')
 
-        self.metric = get_metric(args.task)
+        self.metric = get_metric(self.task)
 
     def initialize_training_folders(self, from_scratch):
         exp_path = osp.join(CHECKPOINT_PATH, self.exp_name)
@@ -70,7 +71,11 @@ class Trainer:
 
         while self.current_epoch < self.num_epochs:
             if self.current_epoch % self.val_iterval == 0:
-                self.validation() 
+                val_metric = self.validation() 
+                if self.task == 'regression':
+                    self.logger.info(f'Epoch: {self.current_epoch}/{self.num_epochs} -  Val MSE: {val_metric.item():.4f}')
+                else:
+                    self.logger.info(f'Epoch: {self.current_epoch}/{self.num_epochs} -  Val Acc: {val_metric.item():.4f}')
             self.current_iter = 1
             self.train_one_epoch()
             self.scheduler.step()
@@ -95,17 +100,35 @@ class Trainer:
             kl_div = self.model.KL()
             nll = self.model.nll(data, self.num_samples)
             # reweight loss by current weight of KL
-            weight_kl = self.weight_kl()
+            if self.kl_reweight:
+                weight_kl = self.weight_kl()
+            else:
+                weight_kl = 1
             elbo =  weight_kl * kl_div + nll
             elbo.backward()
             if self.current_iter % 20 == 0:
-                self.logger.info(f'step: {self.current_iter}/{self.num_epochs} -  EBLO: {elbo.item():.4f} - KL: {kl_div.item():.4f} - NLL: {nll.item():.4f}')
+                self.logger.info(f'step: {self.current_iter}/{self.num_batches} -  EBLO: {elbo.item():.4f} - KL: {kl_div.item():.4f} - NLL: {nll.item():.4f}')
             self.optimizer.step()
             self.current_iter += 1
-            
+
+    @torch.no_grad()        
     def validation(self):
         self.model.eval()
-        pass
+        outputs = []
+        targets = []
+        for data in self.valid_loader:
+            data['targets'] = data['targets'].type(torch.FloatTensor)
+            targets.append(data['targets'])
+            b_outputs = torch.zeros_like(data['targets'])
+            for _ in range(self.num_samples):
+                b_outputs += self.model(data['inputs'])
+            b_outputs = b_outputs / self.num_samples
+            outputs.append(b_outputs)
+        outputs = torch.cat(outputs, dim=0)
+        targets = torch.cat(targets, dim=0)
+        metric = self.metric(targets, outputs)
+        return metric
+
             
 def main():
     args = parse_args()
