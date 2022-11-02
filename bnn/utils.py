@@ -7,8 +7,8 @@ import torch
 import numpy as np
 import random
 from datetime import datetime
-
-
+# from torchmetrics import MeanSquaredError, Accuracy
+from sklearn.metrics import mean_squared_error, accuracy_score
 def seed_all(seed=None):
     if seed is None:
         seed = (
@@ -110,7 +110,7 @@ def parse_args():
     parser.add_argument('--gamma', type=float, default=0.1, help='learning rate decay factor for step decay')
     parser.add_argument('--optimizer', default='SGD', choices=('SGD', 'ADAM', "RMSprop"), help='optimizer to use (SGD | ADAM | RMSprop | ADAMax)')
     parser.add_argument('--weight_decay', type=float, default=0, help='weight decay')
-
+    parser.add_argument('--kl_reweight', action='store_true', help='reweight KL divergence')
     # head tuning options
     args = parser.parse_args()
 
@@ -140,14 +140,18 @@ def setup_logger(logger_name, root, level=logging.INFO, screen=False, tofile=Fal
 
 
 def get_metric(task_name):
-    if task_name == 'reg':
+    if task_name == 'regression':
         return mse
     else:
         return accuracy
 
 
-def mse():
-    return 0
+def mse(targets, preds):
+    return mean_squared_error(targets, preds)
+    # mse = MeanSquaredError()
+    # return mse(targets, preds)
 
-def accuracy():
-    return 0
+def accuracy(targets, preds):
+    return accuracy_score(targets, preds)
+    # accuracy = Accuracy()
+    # return accuracy(targets, preds)
