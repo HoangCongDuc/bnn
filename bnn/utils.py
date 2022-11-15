@@ -105,12 +105,13 @@ def parse_args():
 
     # Optimization specifications
     parser.add_argument('--lr', type=float, default=1e-4, help='learning rate')
-    parser.add_argument('--lr_decay', type=int, default=3, help='learning rate decay per N epochs')
+    parser.add_argument('--lr_decay', type=int, default=20, help='learning rate decay per N epochs')
     parser.add_argument('--decay_type', type=str, default='step', help='learning rate decay type')
     parser.add_argument('--gamma', type=float, default=0.1, help='learning rate decay factor for step decay')
     parser.add_argument('--optimizer', default='SGD', choices=('SGD', 'ADAM', "RMSprop"), help='optimizer to use (SGD | ADAM | RMSprop | ADAMax)')
     parser.add_argument('--weight_decay', type=float, default=0, help='weight decay')
     parser.add_argument('--kl_reweight', action='store_true', help='reweight KL divergence')
+    parser.add_argument('--vars', nargs='+', help='create variances for prior')
     # head tuning options
     args = parser.parse_args()
 
