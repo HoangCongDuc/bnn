@@ -101,6 +101,7 @@ def parse_args():
     parser.add_argument('--batch_size', type=int, default=8, help='Batch size')
     parser.add_argument('--test_size', type=float, default=0.2, help='Batch size')
     parser.add_argument('--seed', type=int, help='seed for exp')
+    parser.add_argument('--device', type=str, default='cpu', help='cpu or cuda')
     # parser.add_argument('--img_log_freq', type=int, help='saving image frequency')
 
     # Optimization specifications

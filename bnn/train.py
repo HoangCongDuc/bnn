@@ -33,8 +33,8 @@ class Trainer:
 
         self.num_batches = len(self.train_loader)
         
-        self.device = torch.device('cpu')
-        self.model = MLP().to(self.device)
+        self.device = args.device
+        self.model = MLP(logstd=(0, -6), mixture_weights=(3, 1)).to(self.device)
         
     
         self.optimizer = get_optimizer(self.model, args)
@@ -147,17 +147,19 @@ class Trainer:
             data['inputs'] = data['inputs'].to(self.device)
             data['targets'] = data['targets'].to(self.device)
 
+            # reweight loss by current weight of KL
+            if self.kl_reweight:
+                weight_kl = self.weight_kl()
+                # weight_kl = 1 / self.num_batches
+            else:
+                weight_kl = 1
+
             self.model.zero_grad()
             kl_div = self.model.KL()
             nll = self.model.nll(data, self.num_samples)
-            # reweight loss by current weight of KL
-            if self.kl_reweight:
-                # weight_kl = self.weight_kl()
-                weight_kl = 1 / self.num_batches
-            else:
-                weight_kl = 1
             elbo =  weight_kl * kl_div + nll
             elbo.backward()
+            
             if self.current_iter % 20 == 0:
                 self.logger.info(f'step: {self.current_iter}/{self.num_batches} -  EBLO: {elbo.item():.4f} - KL: {kl_div.item():.4f} - NLL: {nll.item():.4f}')
             self.optimizer.step()
@@ -211,6 +213,8 @@ class Trainer:
         preds_std = all_outputs.std(0).cpu().numpy()
         # calculate final outputs by mean of all outputs
         final_outputs = torch.sum(all_outputs, dim=0) / self.num_samples
+        targets = targets.cpu().numpy()
+        final_outputs = final_outputs.cpu().numpy()
         metric = self.metric(targets, final_outputs)
 
         return metric, preds_mean, preds_std
