@@ -6,17 +6,17 @@ from .module import *
 from .layers import Linear
 
 class MLP(BNNModule):
-    def __init__(self, logstd=(0,), mixture_weights=(1,)):
+    def __init__(self, logstd=(0, -6), mixture_weights=(1, 3)):
         super().__init__()
-        self.linear1 = Linear(in_features=1, out_features=50, logstd=logstd, mixture_weights=mixture_weights)
-        self.linear2 = Linear(in_features=50, out_features=50, logstd=logstd, mixture_weights=mixture_weights)
-        self.linear3 = Linear(in_features=50, out_features=1, logstd=logstd, mixture_weights=mixture_weights)
+        self.linear1 = Linear(in_features=1, out_features=100, logstd=logstd, mixture_weights=mixture_weights)
+        # self.linear2 = Linear(in_features=100, out_features=100, logstd=logstd, mixture_weights=mixture_weights)
+        self.linear3 = Linear(in_features=100, out_features=1, logstd=logstd, mixture_weights=mixture_weights)
         self.loss_func = nn.MSELoss(reduction='sum')
 
     def forward(self, X):
         feature = self.linear1(X)
-        feature = F.relu(feature)
-        feature = self.linear2(feature)
+        # feature = F.relu(feature)
+        # feature = self.linear2(feature)
         feature = F.relu(feature)
         out = self.linear3(feature)
         return out

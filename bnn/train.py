@@ -34,14 +34,14 @@ class Trainer:
         self.num_batches = len(self.train_loader)
         
         self.device = args.device
-        self.model = MLP(logstd=(0, -6), mixture_weights=(3, 1)).to(self.device)
+        self.model = MLP(logstd=(0,), mixture_weights=(1,)).to(self.device)
         
     
         self.optimizer = get_optimizer(self.model, args)
         self.scheduler = get_scheduler(self.optimizer, args)
         
         self.kl_reweight = args.kl_reweight
-        self.val_iterval = 2
+        self.val_iterval = 1
         self.num_epochs = args.num_epochs
         self.num_samples = args.num_samples
         self.current_epoch = 0
@@ -85,6 +85,9 @@ class Trainer:
                     self.best_metric['metric'] = val_metric
                     self.best_metric['mean_std'] = (mean, std)
                     self.logger.info(f"Save model with best performance: {self.best_metric['metric']}")
+
+                    if self.dataset == 'toy':
+                        self.visualize_toy_dataset(mean, std)
                 
                 if self.task == 'regression':
                     self.logger.info(f'Epoch: {self.current_epoch}/{self.num_epochs} -  Val MSE: {val_metric:.4f}')
@@ -95,10 +98,10 @@ class Trainer:
             # self.scheduler.step()
             self.current_epoch += 1
 
-        if self.dataset == 'toy':
-            mean, std = self.best_metric['mean_std']
+        # if self.dataset == 'toy':
+        #     mean, std = self.best_metric['mean_std']
             
-            self.visualize_toy_dataset(mean, std)
+        #     self.visualize_toy_dataset(mean, std)
     
     def visualize_toy_dataset(self, mean, std):
         x = []
@@ -119,7 +122,8 @@ class Trainer:
         x_test = torch.cat(x_test, dim=0).squeeze(1).cpu().numpy()
         y_test = torch.cat(y_test, dim=0).cpu().numpy()
 
-        save_name = self.exp_name + '.png'
+        # save_name = self.exp_name + '.png'
+        save_name = osp.join(CHECKPOINT_PATH, self.exp_name, f'Epoch_{self.current_epoch}.png')
         visualize_toy(x, 
                     y, 
                     x_test, 
@@ -136,7 +140,8 @@ class Trainer:
             returns:
                 weight: weight of current batch
         '''
-        weight = (2 ** (self.num_batches - self.current_iter)) / (2**self.num_batches - 1)
+        # weight = (2 ** (self.num_batches - self.current_iter)) / (2**self.num_batches - 1)
+        weight = 10# / self.num_batches
         return weight
     
     def train_one_epoch(self):
@@ -155,7 +160,7 @@ class Trainer:
                 weight_kl = 1
 
             self.model.zero_grad()
-            kl_div = self.model.KL()
+            kl_div = self.model.KL(self.num_samples)
             nll = self.model.nll(data, self.num_samples)
             elbo =  weight_kl * kl_div + nll
             elbo.backward()
@@ -194,7 +199,7 @@ class Trainer:
         all_outputs = []
         targets = []
 
-        for idx in range(self.num_samples):
+        for idx in range(20):
             outputs = [] 
             for data in self.valid_loader:
                 data['inputs'] = data['inputs'].to(self.device)
@@ -215,7 +220,8 @@ class Trainer:
         final_outputs = torch.sum(all_outputs, dim=0) / self.num_samples
         targets = targets.cpu().numpy()
         final_outputs = final_outputs.cpu().numpy()
-        metric = self.metric(targets, final_outputs)
+        # metric = self.metric(targets, final_outputs)
+        metric = (((preds_mean - targets) / preds_std) ** 2 + np.log(2 * np.pi * preds_std)).mean()
 
         return metric, preds_mean, preds_std
 

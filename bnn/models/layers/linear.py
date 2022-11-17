@@ -48,12 +48,13 @@ class Linear(BNNModule):
 
     def reset_parameters(self) -> None:
         nn.init.kaiming_uniform_(self.weight_posteiror_mean, a=math.sqrt(5))
-        nn.init.normal_(self.weight_posteiror_rho, mean=-3, std=0.1)
+        # nn.init.normal_(self.weight_posteiror_mean, 0, 0.1)
+        nn.init.constant_(self.weight_posteiror_rho, -3)
         if self.use_bias:
             fan_in, _ = nn.init._calculate_fan_in_and_fan_out(self.weight_posteiror_mean)
             bound = 1 / math.sqrt(fan_in) if fan_in > 0 else 0
             nn.init.uniform_(self.bias_posteiror_mean, -bound, bound)
-            nn.init.normal_(self.bias_posteiror_rho, mean=-3, std=0.1)
+            nn.init.constant_(self.bias_posteiror_rho, -3)
 
     def _get_posterior(self) -> Dict[str, D.Distribution]:
         result = dict()
@@ -119,8 +120,10 @@ class Linear(BNNModule):
     def forward(self, input: Tensor) -> Tensor:
         posterior = self._get_posterior()
         weight = posterior['weight'].rsample()
+        # weight = self.weight_posteiror_mean
         if self.use_bias:
             bias = posterior['bias'].rsample()
+            # bias = self.bias_posteiror_mean
         else:
             bias = None
         return F.linear(input, weight, bias)

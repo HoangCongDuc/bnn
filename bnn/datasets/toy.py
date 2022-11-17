@@ -20,12 +20,16 @@ np.random.seed(42)
 class ToyRegression(torchdata.Dataset):
     def __init__(self, size, train=True):
         if train:
-            x = np.random.uniform(-0.1, 0.61, size=size)
-            noise = np.random.normal(0, 0.02, size=size) #metric as mentioned in the paper
-            y = x + 0.3 * np.sin( 2 * np.pi * (x+noise)) + 0.3 * np.sin( 4 * np.pi * (x+noise)) + noise
+            x = np.random.uniform(-4, 4, size=size)
+            noise = np.random.normal(0, 8, size=size) #metric as mentioned in the paper
+            # y = x + 0.3 * np.sin( 2 * np.pi * (x+noise)) + 0.3 * np.sin( 4 * np.pi * (x+noise)) + noise
+            y = (x) ** 3 + noise
+            # y = np.sin(x) * (1 + noise)
         else:
-            x = np.linspace(-0.5, 1, size)
-            y = x + 0.3 * np.sin( 2 * np.pi * x) + 0.3 * np.sin( 4 * np.pi * x)
+            x = np.linspace(-5, 5, size)
+            # y = x + 0.3 * np.sin( 2 * np.pi * x) + 0.3 * np.sin( 4 * np.pi * x)
+            y = (x) ** 3
+            # y = np.sin(x)
         self.x = x
         self.y = y
 
