@@ -13,12 +13,12 @@ class MLP(BNNModule):
         self.linear3 = Linear(in_features=100, out_features=1, logstd=logstd, mixture_weights=mixture_weights)
         self.loss_func = nn.MSELoss(reduction='sum')
 
-    def forward(self, X):
-        feature = self.linear1(X)
+    def forward(self, X, sample=True):
+        feature = self.linear1(X, sample)
         # feature = F.relu(feature)
-        # feature = self.linear2(feature)
+        # feature = self.linear2(feature, sample)
         feature = F.relu(feature)
-        out = self.linear3(feature)
+        out = self.linear3(feature, sample)
         return out
 
     def nll(self, data, n_samples=1):
