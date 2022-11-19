@@ -6,9 +6,10 @@ from models import MLP
 from datasets import build_uci_loaders, build_mnist_loaders, build_toy_loaders
 from torch.utils.data import DataLoader
 import os.path as osp
-from utils import get_optimizer, get_scheduler, parse_args
+from utils import get_optimizer, get_scheduler
 from utils import get_timestamp, setup_logger
 from visualize import visualize_toy
+from conf import *
 # model returns KL and forward
 
 CHECKPOINT_PATH = 'checkpoints'
@@ -16,38 +17,38 @@ from torch.utils.tensorboard import SummaryWriter
 
 class Trainer:
 
-    def __init__(self, args):
+    def __init__(self, cfg):
              
-        if args.dataset == 'uci':
-            self.train_loader, self.valid_loader = build_uci_loaders(args)
-        elif args.dataset == 'mnist':
-            self.train_loader, self.valid_loader = build_mnist_loaders(args)
-        elif args.dataset == 'toy':
-            self.train_loader, self.valid_loader = build_toy_loaders(args)
+        if cfg.dataset == 'uci':
+            self.train_loader, self.valid_loader = build_uci_loaders(cfg)
+        elif cfg.dataset == 'mnist':
+            self.train_loader, self.valid_loader = build_mnist_loaders(cfg)
+        elif cfg.dataset == 'toy':
+            self.train_loader, self.valid_loader = build_toy_loaders(cfg)
         else:
-            raise Exception(f"Do not support {args.dataset} dataset")
+            raise Exception(f"Do not support {cfg.dataset} dataset")
 
-        self.exp_name = args.exp_name
+        self.exp_name = cfg.exp_name
         self.initialize_training_folders(True)
-        self.dataset = args.dataset
+        self.dataset = cfg.dataset
 
         self.num_batches = len(self.train_loader)
         
-        self.device = args.device
-        self.model = MLP(logstd=(0,), mixture_weights=(1,)).to(self.device)
+        self.device = cfg.device
+        self.model = build_model(cfg)
         
     
-        self.optimizer = get_optimizer(self.model, args)
-        self.scheduler = get_scheduler(self.optimizer, args)
+        self.optimizer = get_optimizer(self.model, cfg)
+        self.scheduler = get_scheduler(self.optimizer, cfg)
         
-        self.kl_reweight = args.kl_reweight
+        self.kl_reweight = cfg.kl_reweight
         self.val_iterval = 1
-        self.num_epochs = args.num_epochs
-        self.num_samples = args.num_samples
+        self.num_epochs = cfg.num_epochs
+        self.num_samples = cfg.num_samples
         self.current_epoch = 0
         self.current_iter = 0
         
-        self.task = args.task
+        self.task = cfg.task
         self.metric = get_metric(self.task)
 
         self.best_metric = {
@@ -170,29 +171,6 @@ class Trainer:
             self.optimizer.step()
             self.current_iter += 1
             
-    # @torch.no_grad()        
-    # def validation(self):
-    #     self.model.eval()
-    #     outputs = []
-    #     targets = []
-    #     for data in self.valid_loader:
-    #         data['targets'] = data['targets'].type(torch.FloatTensor)
-
-    #         data['inputs'] = data['inputs'].to(self.device)
-    #         data['targets'] = data['targets'].to(self.device)
-
-    #         targets.append(data['targets'])
-    #         b_outputs = torch.zeros_like(data['targets'])
-    #         for _ in range(self.num_samples):
-    #             preds = self.model(data['inputs'])
-    #             preds = torch.squeeze(preds, dim=-1)
-    #             b_outputs += preds
-    #         b_outputs = b_outputs / self.num_samples
-    #         outputs.append(b_outputs)
-    #     outputs = torch.cat(outputs, dim=0).cpu().numpy()
-    #     targets = torch.cat(targets, dim=0).cpu().numpy()
-    #     metric = self.metric(targets, outputs)
-    #     return metric
     @torch.no_grad()
     def validation(self):
         self.model.eval()
@@ -226,8 +204,9 @@ class Trainer:
         return metric, preds_mean, preds_std
 
 def main():
-    args = parse_args()
-    trainer = Trainer(args)
+    # args = parse_args()
+    cfg = read_config()
+    trainer = Trainer(cfg)
     trainer.train()
 
 if __name__ == '__main__':

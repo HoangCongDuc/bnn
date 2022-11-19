@@ -1,6 +1,5 @@
 import os
 import logging
-import argparse
 import torch.optim as optim
 import torch.optim.lr_scheduler as lrs
 import torch
@@ -9,6 +8,13 @@ import random
 from datetime import datetime
 # from torchmetrics import MeanSquaredError, Accuracy
 from sklearn.metrics import mean_squared_error, accuracy_score
+
+import sys
+import importlib
+from types import SimpleNamespace
+# sys.path.append("/lclhome/cnguy049/projects/bnn/bnn/configs")
+import argparse
+
 def seed_all(seed=None):
     if seed is None:
         seed = (
@@ -81,44 +87,60 @@ def get_optimizer(model, args):
 
     return optimizer_function(trainable, **kwargs)
 
-def parse_args():
-    parser = argparse.ArgumentParser(description='Compression-Driven Frame Interpolation Training')
+# def parse_args():
+#     parser = argparse.ArgumentParser(description='Compression-Driven Frame Interpolation Training')
 
-    # parameters
-    # Model Selection
-    # parser.add_argument('--fe_name', type=str, required=True, help='choose between regression and classification')
-    # parser.add_argument('--task', type=str, required=True, help='Each task has its corresponding head architecture')
+#     # parameters
+#     # Model Selection
+#     # parser.add_argument('--fe_name', type=str, required=True, help='choose between regression and classification')
+#     # parser.add_argument('--task', type=str, required=True, help='Each task has its corresponding head architecture')
 
-    # Directory Setting
-    parser.add_argument('--dataset', type=str, required=True, help="dataset name: uci, mnist")
-    parser.add_argument('--exp_name', type=str, default="regression")
-    parser.add_argument('--task', type=str, default="regression")
+#     # Directory Setting
+#     parser.add_argument('--dataset', type=str, required=True, help="dataset name: uci, mnist")
+#     parser.add_argument('--exp_name', type=str, default="regression")
+#     parser.add_argument('--task', type=str, default="regression")
 
-    # Learning Options
-    parser.add_argument('--num_epochs', type=int, default=100, help='Max Epochs')
-    parser.add_argument('--num_samples', type=int, default=100, help='Model Samples')
-    parser.add_argument('--num_workers', type=int, default=8, help='Number of workers')
-    parser.add_argument('--batch_size', type=int, default=8, help='Batch size')
-    parser.add_argument('--test_size', type=float, default=0.2, help='Batch size')
-    parser.add_argument('--seed', type=int, help='seed for exp')
-    parser.add_argument('--device', type=str, default='cpu', help='cpu or cuda')
-    # parser.add_argument('--img_log_freq', type=int, help='saving image frequency')
+#     # Learning Options
+#     parser.add_argument('--num_epochs', type=int, default=100, help='Max Epochs')
+#     parser.add_argument('--num_samples', type=int, default=100, help='Model Samples')
+#     parser.add_argument('--num_workers', type=int, default=8, help='Number of workers')
+#     parser.add_argument('--batch_size', type=int, default=8, help='Batch size')
+#     parser.add_argument('--test_size', type=float, default=0.2, help='Batch size')
+#     parser.add_argument('--seed', type=int, help='seed for exp')
+#     parser.add_argument('--device', type=str, default='cpu', help='cpu or cuda')
+#     # parser.add_argument('--img_log_freq', type=int, help='saving image frequency')
 
-    # Optimization specifications
-    parser.add_argument('--lr', type=float, default=1e-4, help='learning rate')
-    parser.add_argument('--lr_decay', type=int, default=20, help='learning rate decay per N epochs')
-    parser.add_argument('--decay_type', type=str, default='step', help='learning rate decay type')
-    parser.add_argument('--gamma', type=float, default=0.1, help='learning rate decay factor for step decay')
-    parser.add_argument('--optimizer', default='SGD', choices=('SGD', 'ADAM', "RMSprop"), help='optimizer to use (SGD | ADAM | RMSprop | ADAMax)')
-    parser.add_argument('--weight_decay', type=float, default=0, help='weight decay')
-    parser.add_argument('--kl_reweight', action='store_true', help='reweight KL divergence')
-    parser.add_argument('--vars', nargs='+', help='create variances for prior')
-    # head tuning options
-    args = parser.parse_args()
+#     # Optimization specifications
+#     parser.add_argument('--lr', type=float, default=1e-4, help='learning rate')
+#     parser.add_argument('--lr_decay', type=int, default=20, help='learning rate decay per N epochs')
+#     parser.add_argument('--decay_type', type=str, default='step', help='learning rate decay type')
+#     parser.add_argument('--gamma', type=float, default=0.1, help='learning rate decay factor for step decay')
+#     parser.add_argument('--optimizer', default='SGD', choices=('SGD', 'ADAM', "RMSprop"), help='optimizer to use (SGD | ADAM | RMSprop | ADAMax)')
+#     parser.add_argument('--weight_decay', type=float, default=0, help='weight decay')
+#     parser.add_argument('--kl_reweight', action='store_true', help='reweight KL divergence')
+#     parser.add_argument('--vars', nargs='+', help='create variances for prior')
+#     # head tuning options
+#     args = parser.parse_args()
 
-    return args
+#     return args
 
 # setup logger
+
+def read_config():
+    parser = argparse.ArgumentParser(description='')
+
+    parser.add_argument("-C", "--config", help="config filename")
+    parser_args, _ = parser.parse_known_args(sys.argv)
+
+    print("Using config file", parser_args.config)
+
+    cfg = importlib.import_module(parser_args.config).cfg
+
+    # cfg["experiment_name"] = parser_args.config
+
+    cfg =  SimpleNamespace(**cfg)
+    return cfg
+
 
 def get_timestamp():
     return datetime.now().strftime("%y%m%d-%H%M%S")
@@ -150,10 +172,7 @@ def get_metric(task_name):
 
 def mse(targets, preds):
     return mean_squared_error(targets, preds)
-    # mse = MeanSquaredError()
-    # return mse(targets, preds)
 
 def accuracy(targets, preds):
     return accuracy_score(targets, preds)
-    # accuracy = Accuracy()
-    # return accuracy(targets, preds)
+
