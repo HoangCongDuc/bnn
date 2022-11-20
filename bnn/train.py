@@ -1,16 +1,12 @@
 import torch
-import torch.nn as nn
 from utils import *
 from tqdm import tqdm
-from models import MLP
+from models import build_model
 from datasets import build_uci_loaders, build_mnist_loaders, build_toy_loaders
-from torch.utils.data import DataLoader
 import os.path as osp
 from utils import get_optimizer, get_scheduler
 from utils import get_timestamp, setup_logger
 from visualize import visualize_toy
-from conf import *
-# model returns KL and forward
 
 CHECKPOINT_PATH = 'checkpoints'
 from torch.utils.tensorboard import SummaryWriter
@@ -35,7 +31,7 @@ class Trainer:
         self.num_batches = len(self.train_loader)
         
         self.device = cfg.device
-        self.model = build_model(cfg)
+        self.model = build_model(cfg['model'])
         
     
         self.optimizer = get_optimizer(self.model, cfg)
@@ -206,6 +202,7 @@ class Trainer:
 def main():
     # args = parse_args()
     cfg = read_config()
+    import ipdb; ipdb.set_trace()
     trainer = Trainer(cfg)
     trainer.train()
 

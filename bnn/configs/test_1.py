@@ -1,5 +1,5 @@
 import os
-abs_path = os.path.dirname(__file__)
+# abs_path = os.path.dirname(__file__)
 
 cfg = {
     'model_path':'./weights/',
@@ -16,15 +16,13 @@ cfg = {
 
     'model': {
         'name': 'MLP',
-        'flatten': True,
-        'in_channels': 768,
-        'layers': [100, 100, 10],
-        'log_std': (0, -6),
-        'mixture_weight': (1, 3),
+        'layers': [1, 100, 100, 1],
+        'log_std': (0,),
+        'mixture_weight': (1,),
+        'nll_loss': "mse", # 'cross_entropy'
     },
 
 
-    'nll_loss': "mse", # cross entropy
 
     'kl_weight': 0.01,
     
