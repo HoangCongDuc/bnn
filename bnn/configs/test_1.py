@@ -1,12 +1,5 @@
-from types import SimpleNamespace
-from copy import deepcopy
-import numpy as np
-
 import os
-import albumentations as A
-from albumentations.pytorch import ToTensorV2
 abs_path = os.path.dirname(__file__)
-import cv2
 
 cfg = {
     'model_path':'./weights/',
@@ -22,7 +15,7 @@ cfg = {
     'dataset': 'toy',
 
     'model': {
-        'name': '',
+        'name': 'MLP',
         'flatten': True,
         'in_channels': 768,
         'layers': [100, 100, 10],
