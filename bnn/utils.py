@@ -134,12 +134,11 @@ def read_config():
 
     print("Using config file", parser_args.config)
 
-    cfg_module = parser_args.config.replace('/', '.')
-    if cfg_module.endswith('.py'):
-        cfg_module = cfg_module[:-3]
-    cfg = importlib.import_module(cfg_module).cfg
+    spec = importlib.util.spec_from_file_location('config', parser_args.config)
+    cfg_module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(cfg_module)
 
-    cfg =  SimpleNamespace(**cfg)
+    cfg =  SimpleNamespace(**cfg_module.cfg)
     return cfg
 
 
