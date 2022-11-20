@@ -49,7 +49,7 @@ class ToyRegression(torchdata.Dataset):
     def __getitem__(self, index):
         data = {
             'inputs': self.toTensor(self.x[index]).unsqueeze(0),
-            'targets': self.toTensor(self.y[index])
+            'targets': self.toTensor(self.y[index]).unsqueeze(0)
         }
         return data
 

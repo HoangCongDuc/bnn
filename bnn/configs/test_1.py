@@ -1,37 +1,31 @@
-import os
-# abs_path = os.path.dirname(__file__)
-
 cfg = {
-    'model_path':'./weights/',
-    'data_path':'./data/',
-
-    'experiment_name': 'bnn_toys',
-    'filter_warnings':True,
-
-    'seed':101,
-    'num_workers':4,
-    'save_weights_only':False,
+    'exp_name': 'bnn_toys',
+    'task': 'regression',
 
     'dataset': 'toy',
+    'test_size': 0.2,
 
+    'num_epochs': 200,
+    'num_workers': 8,
+    'batch_size': 64,
+    
+    'num_samples_train': 2,
+    'num_samples_val': 20,
+    'kl_weight': 10,
+
+    'device': 'cpu',
     'model': {
         'name': 'MLP',
-        'layers': [1, 100, 100, 1],
+        'layers': [1, 100, 1],
         'log_std': (0,),
         'mixture_weight': (1,),
         'nll_loss': "mse", # 'cross_entropy'
     },
 
-
-
-    'kl_weight': 0.01,
-    
+    'lr': 1e-3,
+    'lr_decay': 50,
+    'decay_type': 'step',
+    'gamma': 0.5,
     'optimizer': "ADAM",
-    'weight_decay': 0.01,
-    'weight_decay_bias': 0.0,
-    'eps': 1e-6,
-    'lr': 2.5e-4,
-    'encoder_lr_rate': 1.0,
-    'batch_size': 64,
-    'max_epochs': 30,
+    'weight_decay': 0,
 }

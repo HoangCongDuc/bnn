@@ -31,16 +31,17 @@ class Trainer:
         self.num_batches = len(self.train_loader)
         
         self.device = cfg.device
-        self.model = build_model(cfg['model'])
+        self.model = build_model(cfg.model)
         
     
         self.optimizer = get_optimizer(self.model, cfg)
         self.scheduler = get_scheduler(self.optimizer, cfg)
         
-        self.kl_reweight = cfg.kl_reweight
+        self.kl_weight = cfg.kl_weight
         self.val_iterval = 1
         self.num_epochs = cfg.num_epochs
-        self.num_samples = cfg.num_samples
+        self.num_samples_train = cfg.num_samples_train
+        self.num_samples_val = cfg.num_samples_val
         self.current_epoch = 0
         self.current_iter = 0
         
@@ -129,37 +130,17 @@ class Trainer:
                     std,
                     save_name)
 
-    def weight_kl(self):
-        '''
-            Calculate weight to reweight KL by batch index
-            args:
-                idx: current batch index
-            returns:
-                weight: weight of current batch
-        '''
-        # weight = (2 ** (self.num_batches - self.current_iter)) / (2**self.num_batches - 1)
-        weight = 10# / self.num_batches
-        return weight
-    
     def train_one_epoch(self):
         self.model.train()
         for data in self.train_loader:
-            data['targets'] = data['targets'].type(torch.FloatTensor)
-
+            data['targets'] = data['targets'].type(torch.float32)
             data['inputs'] = data['inputs'].to(self.device)
             data['targets'] = data['targets'].to(self.device)
 
-            # reweight loss by current weight of KL
-            if self.kl_reweight:
-                weight_kl = self.weight_kl()
-                # weight_kl = 1 / self.num_batches
-            else:
-                weight_kl = 1
-
             self.model.zero_grad()
-            kl_div = self.model.KL(self.num_samples)
-            nll = self.model.nll(data, self.num_samples)
-            elbo =  weight_kl * kl_div + nll
+            kl_div = self.model.KL(self.num_samples_train)
+            nll = self.model.nll(data, self.num_samples_train)
+            elbo =  self.kl_weight * kl_div + nll
             elbo.backward()
             
             if self.current_iter % 20 == 0:
@@ -177,7 +158,7 @@ class Trainer:
             outputs = [] 
             for data in self.valid_loader:
                 data['inputs'] = data['inputs'].to(self.device)
-                data['targets'] = data['targets'].type(torch.FloatTensor).to(self.device)
+                data['targets'] = data['targets'].type(torch.float32).to(self.device)
                 preds = self.model(data['inputs'])
                 preds = torch.squeeze(preds, dim=-1)
                 outputs.append(preds)
@@ -191,7 +172,7 @@ class Trainer:
         preds_mean = all_outputs.mean(0).cpu().numpy()
         preds_std = all_outputs.std(0).cpu().numpy()
         # calculate final outputs by mean of all outputs
-        final_outputs = torch.sum(all_outputs, dim=0) / self.num_samples
+        final_outputs = torch.sum(all_outputs, dim=0) / self.num_samples_val
         targets = targets.cpu().numpy()
         final_outputs = final_outputs.cpu().numpy()
         # metric = self.metric(targets, final_outputs)
@@ -202,7 +183,6 @@ class Trainer:
 def main():
     # args = parse_args()
     cfg = read_config()
-    import ipdb; ipdb.set_trace()
     trainer = Trainer(cfg)
     trainer.train()
 
