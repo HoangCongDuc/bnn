@@ -6,7 +6,7 @@ import os.path as osp
 from utils import get_optimizer, get_scheduler
 from utils import get_timestamp, setup_logger
 from visualize import visualize_toy
-from conf import *
+# from conf import *
 # model returns KL and forward
 
 CHECKPOINT_PATH = 'checkpoints'
@@ -59,6 +59,8 @@ class Trainer:
         return model_list
     
     def create_optimizer(self, model, cfg):
+        print(model)
+        print(model.state_dict())
         optimizer = get_optimizer(model, cfg)
         scheduler = get_scheduler(optimizer, cfg)
         return optimizer, scheduler
@@ -129,7 +131,6 @@ class Trainer:
         x_test = torch.cat(x_test, dim=0).squeeze(1).cpu().numpy()
         y_test = torch.cat(y_test, dim=0).cpu().numpy()
 
-        # save_name = self.exp_name + '.png'
         save_name = osp.join(CHECKPOINT_PATH, self.exp_name, f'Epoch_{self.current_epoch}.png')
         visualize_toy(x, 
                     y, 
@@ -147,6 +148,7 @@ class Trainer:
 
             data['inputs'] = data['inputs'].to(self.device)
             data['targets'] = data['targets'].to(self.device)
+            
             
             nll_loss = model(data['inputs'], data['targets']) 
             hist_loss += nll_loss.item() 
@@ -179,7 +181,7 @@ class Trainer:
     
     def train_models(self):
         for idx, model in enumerate(self.model_list):
-            optimizer, scheduler = self.create_optimizer(model, cfg)
+            optimizer, scheduler = self.create_optimizer(model, self.cfg)
             model = self.train_one_model(model, optimizer, scheduler)
             self.model_list[idx] = model
         self.ensemble()

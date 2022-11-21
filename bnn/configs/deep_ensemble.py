@@ -47,6 +47,5 @@ cfg = {
     'eps': 1e-6,
     'lr': 5e-3,
     'encoder_lr_rate': 1.0,
-    'batch_size': 64,
-    'max_epochs': 30,
+    'batch_size': 32
 }

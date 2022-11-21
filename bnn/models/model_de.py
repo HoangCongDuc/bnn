@@ -31,23 +31,27 @@ class MLP_de(nn.Module):
         else:
             assert('Use "relu","tanh" or "sigmoid" as activation.')
 
+        module_list = []
+
         for i in range(self.nLayers + 1):
-            setattr(self, 'layer_'+str(i), nn.Linear(self.net_structure[i], self.net_structure[i+1]))
+            module_list.append(nn.Linear(self.net_structure[i], self.net_structure[i+1]))
+
+        self.module_list = nn.ModuleList(module_list)
 
         if cfg['loss'] == 'mse':
             self.loss = nn.MSELoss()
 
     def forward_logits(self, x):
         # connect layers
-        for i in range(self.nLayers):
-            layer = getattr(self, 'layer_'+str(i))
+        for layer in self.module_list[:-1]:
             x = self.act(layer(x))
-        layer = getattr(self, 'layer_' + str(self.nLayers))
-        x = layer(x)
+        x = self.module_list[-1](x)
         return x
 
     def forward(self, inputs, targets):
         logits = self.forward_logits(inputs)
+        print(logits, targets)
+        exit()
         loss = self.loss(logits, targets)
         return loss
 
