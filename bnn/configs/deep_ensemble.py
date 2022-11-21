@@ -1,13 +1,3 @@
-from types import SimpleNamespace
-from copy import deepcopy
-import numpy as np
-
-import os
-import albumentations as A
-from albumentations.pytorch import ToTensorV2
-abs_path = os.path.dirname(__file__)
-import cv2
-
 cfg = {
     'model_path':'./weights/',
     'data_path':'./data/',
@@ -25,14 +15,14 @@ cfg = {
     'model': {
         'name': 'MLP_de',
         'loss': 'mse',
-        'n_models': 5,
+        'n_models': 1,
         'act': 'relu',
         'flatten': True,
         'in_channels': 1,
         'layers': [50, 50,1],
     },
 
-    'num_epochs': 10,
+    'num_epochs': 100,
     'task': 'regression',
     'nll_loss': "mse", # cross entropy
 
@@ -40,12 +30,12 @@ cfg = {
     
     'optimizer': "ADAM",
     'decay_type': 'step',
-    'lr_decay': 0.1,
-    'gamma': 5, 
+    'lr_decay': 50,
+    'gamma': 0.5, 
     'weight_decay': 0.01,
     'weight_decay_bias': 0.0,
     'eps': 1e-6,
-    'lr': 5e-3,
+    'lr': 1e-4,
     'encoder_lr_rate': 1.0,
     'batch_size': 64,
     'max_epochs': 30,

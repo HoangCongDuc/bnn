@@ -12,7 +12,6 @@ from sklearn.metrics import mean_squared_error, accuracy_score
 import sys
 import importlib
 from types import SimpleNamespace
-sys.path.append("/lclhome/cnguy049/projects/bnn/bnn/configs")
 import argparse
 
 def seed_all(seed=None):
@@ -134,13 +133,12 @@ def read_config():
 
     print("Using config file", parser_args.config)
 
-    # parser_args, _ = parser.parse_known_args(sys.argv)
+    spec = importlib.util.spec_from_file_location('config', parser_args.config)
+    cfg_module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(cfg_module)
 
-    print("Using config file", parser_args.config)
+    cfg =  SimpleNamespace(**cfg_module.cfg)
 
-    cfg = importlib.import_module(parser_args.config).cfg
-
-    cfg =  SimpleNamespace(**cfg)
     return cfg
 
 
