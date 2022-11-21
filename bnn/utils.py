@@ -6,10 +6,8 @@ import torch
 import numpy as np
 import random
 from datetime import datetime
-# from torchmetrics import MeanSquaredError, Accuracy
 from sklearn.metrics import mean_squared_error, accuracy_score
 
-import sys
 import importlib
 from types import SimpleNamespace
 import argparse
@@ -160,19 +158,20 @@ def setup_logger(logger_name, root, level=logging.INFO, screen=False, tofile=Fal
         sh.setFormatter(formatter)
         lg.addHandler(sh)
 
-# get metric
-
 
 def get_metric(task_name):
     if task_name == 'regression':
-        return mse
+        return nll
     else:
         return accuracy
 
-
-def mse(targets, preds):
-    return mean_squared_error(targets, preds)
+def nll(targets, preds_mean, preds_std):
+    "Interpret the predictions as normal distribution with given mean and std then calculate the negative log likelihood"
+    return (((preds_mean - targets) / preds_std) ** 2 / 2 
+            + np.log(preds_std)
+            + np.log(2 * np.pi) / 2).mean()
 
 def accuracy(targets, preds):
     return accuracy_score(targets, preds)
+
 

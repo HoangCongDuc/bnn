@@ -16,7 +16,7 @@ def visualize_toy(x, y, x_test, y_test, mean_preds, std_preds, save_path=''):
             std_preds: std predictions
     '''
     plt.fill_between(x_test, mean_preds - 5 * std_preds, mean_preds + 5 * std_preds,
-                        color='cornflowerblue', alpha=.5, label='+/- 3 std')
+                        color='cornflowerblue', alpha=.5, label='+/- 5 std')
     plt.scatter(x, y,marker='x', c='black', label='target', alpha=0.25)
     plt.plot(x_test, mean_preds, c='red', label='Prediction')
     plt.plot(x_test, y_test, c='grey', label='truth')
