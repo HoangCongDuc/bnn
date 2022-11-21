@@ -31,8 +31,12 @@ class MLP(BNNModule):
         out = self.layers[-1](feats, sample)
         return out
 
-    def nll(self, data, n_samples=1):
+    def nll(self, data, n_samples: int = 1):
+        assert n_samples >= 0
         inputs, targets = data['inputs'], data['targets']
+        if n_samples == 0:
+            out = self(inputs, sample=False)
+            return self.loss_func(out, targets)
         res = 0
         for _ in range(n_samples):
             out = self(inputs)

@@ -6,13 +6,10 @@ import torch
 import numpy as np
 import random
 from datetime import datetime
-# from torchmetrics import MeanSquaredError, Accuracy
 from sklearn.metrics import mean_squared_error, accuracy_score
 
-import sys
 import importlib
 from types import SimpleNamespace
-sys.path.append("/lclhome/cnguy049/projects/bnn/bnn/configs")
 import argparse
 
 def seed_all(seed=None):
@@ -134,13 +131,12 @@ def read_config():
 
     print("Using config file", parser_args.config)
 
-    # parser_args, _ = parser.parse_known_args(sys.argv)
+    spec = importlib.util.spec_from_file_location('config', parser_args.config)
+    cfg_module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(cfg_module)
 
-    print("Using config file", parser_args.config)
+    cfg =  SimpleNamespace(**cfg_module.cfg)
 
-    cfg = importlib.import_module(parser_args.config).cfg
-
-    cfg =  SimpleNamespace(**cfg)
     return cfg
 
 
@@ -162,19 +158,20 @@ def setup_logger(logger_name, root, level=logging.INFO, screen=False, tofile=Fal
         sh.setFormatter(formatter)
         lg.addHandler(sh)
 
-# get metric
-
 
 def get_metric(task_name):
     if task_name == 'regression':
-        return mse
+        return nll
     else:
         return accuracy
 
-
-def mse(targets, preds):
-    return mean_squared_error(targets, preds)
+def nll(targets, preds_mean, preds_std):
+    "Interpret the predictions as normal distribution with given mean and std then calculate the negative log likelihood"
+    return (((preds_mean - targets) / preds_std) ** 2 / 2 
+            + np.log(preds_std)
+            + np.log(2 * np.pi) / 2).mean()
 
 def accuracy(targets, preds):
     return accuracy_score(targets, preds)
+
 

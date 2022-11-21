@@ -6,7 +6,6 @@ import os.path as osp
 from utils import get_optimizer, get_scheduler
 from utils import get_timestamp, setup_logger
 from visualize import visualize_toy
-# from conf import *
 # model returns KL and forward
 
 CHECKPOINT_PATH = 'checkpoints'
@@ -50,6 +49,8 @@ class Trainer:
             'metric' : 100000000,
             'state_dict' : None
         }
+
+        self.cfg = cfg
 
     def create_models(self, cfg):
         model_list = []
