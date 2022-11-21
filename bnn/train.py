@@ -183,6 +183,7 @@ class Trainer:
 def main():
     # args = parse_args()
     cfg = read_config()
+    print(cfg)
     trainer = Trainer(cfg)
     trainer.train()
 

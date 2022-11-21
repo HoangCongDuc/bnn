@@ -12,7 +12,7 @@ from sklearn.metrics import mean_squared_error, accuracy_score
 import sys
 import importlib
 from types import SimpleNamespace
-# sys.path.append("/lclhome/cnguy049/projects/bnn/bnn/configs")
+sys.path.append("/lclhome/cnguy049/projects/bnn/bnn/configs")
 import argparse
 
 def seed_all(seed=None):
@@ -23,7 +23,7 @@ def seed_all(seed=None):
             + int.from_bytes(os.urandom(2), "big")
         )
         print("Using a generated random seed {}".format(seed))
-    torch.manual_seed(seed)
+    # torch.manual_seed(seed)
     np.random.seed(seed)
     random.seed(seed)
     os.environ["PYTHONHASHSEED"] = str(seed)
@@ -134,11 +134,13 @@ def read_config():
 
     print("Using config file", parser_args.config)
 
-    spec = importlib.util.spec_from_file_location('config', parser_args.config)
-    cfg_module = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(cfg_module)
+    # parser_args, _ = parser.parse_known_args(sys.argv)
 
-    cfg =  SimpleNamespace(**cfg_module.cfg)
+    print("Using config file", parser_args.config)
+
+    cfg = importlib.import_module(parser_args.config).cfg
+
+    cfg =  SimpleNamespace(**cfg)
     return cfg
 
 
