@@ -130,15 +130,15 @@ def read_config():
     parser = argparse.ArgumentParser(description='')
 
     parser.add_argument("-C", "--config", help="config filename")
-    parser_args, _ = parser.parse_known_args(sys.argv)
+    parser_args = parser.parse_args()
 
     print("Using config file", parser_args.config)
 
-    cfg = importlib.import_module(parser_args.config).cfg
+    spec = importlib.util.spec_from_file_location('config', parser_args.config)
+    cfg_module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(cfg_module)
 
-    # cfg["experiment_name"] = parser_args.config
-
-    cfg =  SimpleNamespace(**cfg)
+    cfg =  SimpleNamespace(**cfg_module.cfg)
     return cfg
 
 

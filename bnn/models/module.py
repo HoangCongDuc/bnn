@@ -1,10 +1,10 @@
 import torch
-from torch.nn import Module
+import torch.nn as nn
 
 
-__all__ = ['BNNModule']
+__all__ = ['BNNModule', 'ModuleList']
 
-class BNNModule(Module):
+class BNNModule(nn.Module):
     def __init__(self):
         super().__init__()
 
@@ -19,3 +19,6 @@ class BNNModule(Module):
             if isinstance(module, BNNModule):
                 result = result + module.KL(n_samples)
         return result
+
+
+class ModuleList(nn.ModuleList, BNNModule): pass
