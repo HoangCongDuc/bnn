@@ -69,14 +69,14 @@ class WineDataset(torchdata.Dataset):
         return {"inputs": input, "targets": label}
 
 
-def build_uci_loaders(args):
+def build_uci_loaders(cfg):
     
 
-    num_workers = args.num_workers
-    batch_size = args.batch_size
+    num_workers = cfg.num_workers
+    batch_size = cfg.batch_size
 
-    train_dataset = WineDataset(root_dir=ROOT_UCI, test_size=args.test_size, seed=args.seed)
-    valid_dataset = WineDataset(root_dir=ROOT_UCI, test_size=args.test_size, train=False, seed=args.seed)
+    train_dataset = WineDataset(root_dir=ROOT_UCI, test_size=cfg.test_size, seed=cfg.seed)
+    valid_dataset = WineDataset(root_dir=ROOT_UCI, test_size=cfg.test_size, train=False, seed=cfg.seed)
 
     train_sampler = torchdata.RandomSampler(train_dataset)
     valid_sampler = torchdata.SequentialSampler(valid_dataset)

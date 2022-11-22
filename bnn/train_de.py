@@ -3,8 +3,10 @@ from utils import *
 from models import build_model
 from datasets import build_uci_loaders, build_mnist_loaders, build_toy_loaders
 import os.path as osp
+import torch.functional as F
 from utils import get_optimizer, get_scheduler
 from utils import get_timestamp, setup_logger
+from utils import nll
 from visualize import visualize_toy
 # model returns KL and forward
 
@@ -26,6 +28,7 @@ class Trainer:
 
         self.cfg = cfg
 
+
         self.exp_name = cfg.exp_name
         self.initialize_training_folders(True)
         self.dataset = cfg.dataset
@@ -42,6 +45,7 @@ class Trainer:
         self.current_iter = 0
         
         self.task = cfg.task
+
         self.metric = get_metric(self.task)
 
         self.best_metric = {
@@ -56,6 +60,7 @@ class Trainer:
         model_list = []
         for _ in range(cfg.model['n_models']):
             model = build_model(cfg.model)
+            model.to(self.device)
             model_list.append(model)
         return model_list
     
@@ -88,7 +93,7 @@ class Trainer:
     def train_one_model(self, model, optimizer, scheduler):
         self.current_epoch = 0
         while self.current_epoch < self.num_epochs:
-            self.logger.info(f'Running epoch {self.current_epoch}/{self.num_epochs}')
+            # self.logger.info(f'Running epoch {self.current_epoch}/{self.num_epochs}')
             # if self.current_epoch > 0 and self.current_epoch % self.val_iterval == 0:
 
             #     val_metric, mean, std = self.validation() 
@@ -143,9 +148,11 @@ class Trainer:
         model.train()
         hist_loss = 0
         for data in self.train_loader:
-            data['targets'] = data['targets'].type(torch.FloatTensor)
+            if self.task == 'regression':
+                data['targets'] = data['targets'].type(torch.FloatTensor)
 
             data['inputs'] = data['inputs'].to(self.device)
+            
             data['targets'] = data['targets'].to(self.device)
             
             
@@ -158,8 +165,8 @@ class Trainer:
             #         NLL: {nll_loss.item():.4f}')
             self.current_iter += 1
         hist_loss = hist_loss / len(self.train_loader)
-        if self.current_epoch % 5 == 0:
-            self.logger.info(f'Epoch: {self.current_epoch}/{self.num_epochs} - NLL: {hist_loss:.4f}')
+        # if self.current_epoch % 5 == 0:
+        self.logger.info(f'Epoch: {self.current_epoch}/{self.num_epochs} - Training Loss: {hist_loss:.4f}')
 
     @torch.no_grad()
     def validation(self, model):
@@ -167,8 +174,10 @@ class Trainer:
         targets = []
         outputs = [] 
         for data in self.valid_loader:
+            if self.task == 'regression':
+                data['targets'] = data['targets'].type(torch.FloatTensor)
             data['inputs'] = data['inputs'].to(self.device)
-            data['targets'] = data['targets'].type(torch.FloatTensor).to(self.device)
+            data['targets'] = data['targets'].to(self.device)
             _, preds = model(data['inputs'], data['targets'])
             preds = torch.squeeze(preds, dim=-1)
 
@@ -176,6 +185,7 @@ class Trainer:
             targets.append(data['targets'])
         outputs = torch.cat(outputs, dim=0).unsqueeze(0)
         targets = torch.cat(targets, dim=0)
+        targets = targets.cpu().numpy()
 
         return outputs, targets
     
@@ -196,14 +206,26 @@ class Trainer:
                 model_outputs, _ = self.validation(model)
             final_outputs.append(model_outputs)
         final_outputs = torch.cat(final_outputs, dim=0)
-        mean = final_outputs.mean(0).cpu().numpy()
-        std = final_outputs.std(0).cpu().numpy()
-        # metric = (((mean - targets) / std) ** 2 + np.log(2 * np.pi * std)).mean()
+        preds_mean = final_outputs.mean(0).cpu().numpy()
+        preds_std = final_outputs.std(0).cpu().numpy()
 
-        if self.dataset == 'toy':
-            self.visualize_toy_dataset(mean, std)
         
-        return mean, std
+        if self.task == 'regression':
+            nll_loss = nll(targets, preds_mean, preds_std)
+            metric = self.metric(targets, preds_mean)
+            self.logger.info(f"MSE: {metric} - NLL: {nll_loss}")
+        else:
+            pass
+            # f_nll_loss = torch.nn.NLLLoss()
+            # f_log_softmax = torch.nn
+            # nll_loss = f_nll_loss(F.log_softmax(preds_mean, dim=1), targets)
+            # metric = self.metric(targets, preds_mean)
+            # self.logger.info(f"Accuracy: {metric} - NLL: {nll_loss}")
+        
+        if self.dataset == 'toy':
+            self.visualize_toy_dataset(preds_mean, preds_std)
+        
+        return metric, nll_loss, preds_mean, preds_std
 
 def main():
     cfg = read_config()

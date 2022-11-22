@@ -2,6 +2,10 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
+def nll_reg_loss(preds, targets):
+    """ Negative log-likelihood loss function. """
+    mean, var = preds
+    return (torch.log(var) + ((targets - mean).pow(2))/var).sum()    
 
 class SingleModel(nn.Module):
     def __init__(self, cfg):
@@ -9,7 +13,7 @@ class SingleModel(nn.Module):
         if cfg['name'] == 'MLP':
             self.model = MLP(cfg)
         elif cfg['name'] == 'GaussianMLP':
-            pass
+            self.model = GaussianMLP(cfg)
         else:
             assert(f"Do not support {cfg['model_name']}")
 
@@ -19,6 +23,8 @@ class SingleModel(nn.Module):
             self.loss = nn.CrossEntropyLoss()
         elif cfg['loss'] == 'softplus':
             self.loss == nn.Softplus()
+        elif cfg['loss'] == 'nll_reg':
+            self.loss = nll_reg_loss
         else:
             assert(f"Do not support {cfg['loss']}")
 
@@ -52,77 +58,51 @@ class MLP(nn.Module):
         else:
             assert('Use "relu","tanh" or "sigmoid" as activation.')
 
+        # if cfg['use_bn']:
+        #     self.bn = nn.BatchNorm1d
+        # else:
+        #     self.bn = nn.Identity()
+
         module_list = []
 
         for i in range(0, len(self.net_structure)-1):
             module_list.append(nn.Linear(self.net_structure[i], self.net_structure[i+1]))
+            if cfg['use_bn'] and i < len(self.net_structure) - 2:
+                module_list.append(nn.BatchNorm1d(self.net_structure[i+1]))
+            else:
+                module_list.append(nn.Identity())
 
         self.module_list = nn.ModuleList(module_list)
 
     def forward(self, x):
+        x = torch.flatten(x, 1)
         for layer in self.module_list[:-1]:
             x = self.act(layer(x))
         x = self.module_list[-1](x)
         return x
 
 
-# class GaussianMLP(MLP):
-#     """ Gaussian MLP which outputs are mean and variance.
+class GaussianMLP(MLP):
+    """ Gaussian MLP which outputs are mean and variance.
 
-#     Attributes:
-#         inputs (int): number of inputs
-#         outputs (int): number of outputs
-#         hidden_layers (list of ints): hidden layer sizes
+    Attributes:
+        inputs (int): number of inputs
+        outputs (int): number of outputs
+        hidden_layers (list of ints): hidden layer sizes
 
-#     """
+    """
 
-#     def __init__(self, cfg):
-#         super(GaussianMLP, self).__init__(cfg)
-#         self.in_channels = cfg.in_channels
-#         self.out_channels = cfg.out_channels
-#     def forward(self, x):
-#         # connect layers
-#         for i in range(self.nLayers):
-#             layer = getattr(self, 'layer_'+str(i))
-#             x = self.act(layer(x))
-#         layer = getattr(self, 'layer_' + str(self.nLayers))
-#         x = layer(x)
-#         mean, variance = torch.split(x, self.outputs, dim=1)
-#         variance = F.softplus(variance) + 1e-6
-#         return mean, variance
+    def __init__(self, cfg):
+        super(GaussianMLP, self).__init__(cfg)
 
-# class GaussianMixtureMLP(nn.Module):
-#     """ Gaussian mixture MLP which outputs are mean and variance.
+    def forward(self, x):
+        # connect layers
+        for layer in self.module_list[:-1]:
+            x = self.act(layer(x))
+        x = self.module_list[-1](x)
 
-#     Attributes:
-#         models (int): number of models
-#         inputs (int): number of inputs
-#         outputs (int): number of outputs
-#         hidden_layers (list of ints): hidden layer sizes
+        mean, variance = torch.split(x, self.outputs, dim=1)
+        # add softplus and eps for numerical stability
+        variance = F.softplus(variance) + 1e-6
 
-#     """
-#     def __init__(self, cfg):
-#         super(GaussianMixtureMLP, self).__init__()
-#         self.num_models = cfg.num_models
-#         self.in_channels = cfg.in_channels
-#         self.out_channels = cfg.out_channels
-#         self.hidden_layers = cfg.layers
-#         self.activation = cfg.activation
-#         for i in range(self.num_models):
-#             model = GaussianMLP(cfg)
-#             setattr(self, 'model_'+str(i), model)
-            
-#     def forward(self, x):
-#         # connect layers
-#         means = []
-#         variances = []
-#         for i in range(self.num_models):
-#             model = getattr(self, 'model_' + str(i))
-#             mean, var = model(x)
-#             means.append(mean)
-#             variances.append(var)
-#         means = torch.stack(means)
-#         mean = means.mean(dim=0)
-#         variances = torch.stack(variances)
-#         variance = (variances + means.pow(2)).mean(dim=0) - mean.pow(2)
-#         return mean, variance
+        return mean, variance
