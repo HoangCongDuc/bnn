@@ -2,7 +2,7 @@ cfg = {
     'model_path':'./weights/',
     'data_path':'./data/',
 
-    'exp_name': 'deep_ensemble_toys',
+    'exp_name': 'deep_ensemble_toys_3_models',
     'device': 'cpu', 
     'filter_warnings': True,
 
@@ -13,13 +13,13 @@ cfg = {
     'dataset': 'toy',
 
     'model': {
-        'name': 'MLP_de',
+        'type': 'de',
+        'name': 'MLP',
         'loss': 'mse',
-        'n_models': 1,
+        'n_models': 5,
         'act': 'relu',
         'flatten': True,
-        'in_channels': 1,
-        'layers': [50, 50,1],
+        'layers': [1, 50, 50,1],
     },
 
     'num_epochs': 100,
@@ -37,5 +37,5 @@ cfg = {
     'eps': 1e-6,
     'lr': 1e-4,
     'encoder_lr_rate': 1.0,
-    'batch_size': 32
+    'batch_size': 64
 }

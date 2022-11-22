@@ -2,7 +2,32 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
-class MLP_de(nn.Module):
+
+class SingleModel(nn.Module):
+    def __init__(self, cfg):
+        super(SingleModel, self).__init__()
+        if cfg['name'] == 'MLP':
+            self.model = MLP(cfg)
+        elif cfg['name'] == 'GaussianMLP':
+            pass
+        else:
+            assert(f"Do not support {cfg['model_name']}")
+
+        if cfg['loss'] == 'mse':
+            self.loss = nn.MSELoss()
+        elif cfg['loss'] == 'softmax':
+            self.loss = nn.CrossEntropyLoss()
+        elif cfg['loss'] == 'softplus':
+            self.loss == nn.Softplus()
+        else:
+            assert(f"Do not support {cfg['loss']}")
+
+    def forward(self, inputs, targets):
+        preds = self.model(inputs)
+        loss = self.loss(preds, targets)
+        return loss, preds
+
+class MLP(nn.Module):
     """ Multilayer perceptron (MLP) with tanh/sigmoid activation functions implemented in PyTorch for regression tasks.
 
     Attributes:
@@ -15,45 +40,30 @@ class MLP_de(nn.Module):
 
     def __init__(self, cfg):
         super().__init__()
-        super(MLP_de, self).__init__()
-        self.in_channels = cfg['in_channels']
-        self.out_channels = cfg['layers'][-1]
-        self.hidden_layers = cfg['layers'][:-1]
-        self.nLayers = len(self.hidden_layers)
-        self.net_structure = [self.in_channels, *self.hidden_layers, self.out_channels]
+        super(MLP, self).__init__()
+        self.net_structure = cfg['layers']
         
         if cfg['act'] == 'relu':
             self.act = torch.relu
-        elif cfg.activation == 'tanh':
+        elif cfg['act'] == 'tanh':
             self.act = torch.tanh
-        elif cfg.activation == 'sigmoid':
+        elif cfg['act'] == 'sigmoid':
             self.act = torch.sigmoid
         else:
             assert('Use "relu","tanh" or "sigmoid" as activation.')
 
         module_list = []
 
-        for i in range(self.nLayers + 1):
+        for i in range(0, len(self.net_structure)-1):
             module_list.append(nn.Linear(self.net_structure[i], self.net_structure[i+1]))
 
         self.module_list = nn.ModuleList(module_list)
 
-        if cfg['loss'] == 'mse':
-            self.loss = nn.MSELoss()
-
-    def forward_logits(self, x):
-        # connect layers
+    def forward(self, x):
         for layer in self.module_list[:-1]:
             x = self.act(layer(x))
         x = self.module_list[-1](x)
         return x
-
-    def forward(self, inputs, targets):
-        logits = self.forward_logits(inputs)
-        print(logits, targets)
-        exit()
-        loss = self.loss(logits, targets)
-        return loss
 
 
 # class GaussianMLP(MLP):

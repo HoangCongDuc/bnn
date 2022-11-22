@@ -60,8 +60,6 @@ class Trainer:
         return model_list
     
     def create_optimizer(self, model, cfg):
-        print(model)
-        print(model.state_dict())
         optimizer = get_optimizer(model, cfg)
         scheduler = get_scheduler(optimizer, cfg)
         return optimizer, scheduler
@@ -132,7 +130,7 @@ class Trainer:
         x_test = torch.cat(x_test, dim=0).squeeze(1).cpu().numpy()
         y_test = torch.cat(y_test, dim=0).cpu().numpy()
 
-        save_name = osp.join(CHECKPOINT_PATH, self.exp_name, f'Epoch_{self.current_epoch}.png')
+        save_name = osp.join(CHECKPOINT_PATH, self.exp_name, f'{self.exp_name}.png')
         visualize_toy(x, 
                     y, 
                     x_test, 
@@ -151,16 +149,17 @@ class Trainer:
             data['targets'] = data['targets'].to(self.device)
             
             
-            nll_loss = model(data['inputs'], data['targets']) 
+            nll_loss, _ = model(data['inputs'], data['targets']) 
             hist_loss += nll_loss.item() 
             nll_loss.backward()
             optimizer.step()
-            if self.current_iter % 20 == 0:
-                self.logger.info(f'step: {self.current_iter}/{self.num_batches} - \
-                    NLL: {nll_loss.item():.4f}')
+            # if self.current_iter % 20 == 0:
+            #     self.logger.info(f'step: {self.current_iter}/{self.num_batches} - \
+            #         NLL: {nll_loss.item():.4f}')
             self.current_iter += 1
         hist_loss = hist_loss / len(self.train_loader)
-        self.logger.info(f'Epoch: {self.current_epoch}/{self.num_epochs} - NLL: {hist_loss:.4f}')
+        if self.current_epoch % 5 == 0:
+            self.logger.info(f'Epoch: {self.current_epoch}/{self.num_epochs} - NLL: {hist_loss:.4f}')
 
     @torch.no_grad()
     def validation(self, model):
@@ -170,7 +169,7 @@ class Trainer:
         for data in self.valid_loader:
             data['inputs'] = data['inputs'].to(self.device)
             data['targets'] = data['targets'].type(torch.FloatTensor).to(self.device)
-            preds = model(data['inputs'])
+            _, preds = model(data['inputs'], data['targets'])
             preds = torch.squeeze(preds, dim=-1)
 
             outputs.append(preds)
@@ -182,6 +181,7 @@ class Trainer:
     
     def train_models(self):
         for idx, model in enumerate(self.model_list):
+            self.logger.info(f"Training model {idx}")
             optimizer, scheduler = self.create_optimizer(model, self.cfg)
             model = self.train_one_model(model, optimizer, scheduler)
             self.model_list[idx] = model
@@ -189,7 +189,7 @@ class Trainer:
 
     def ensemble(self):
         final_outputs = []
-        for idx, model in self.model_list:
+        for idx, model in enumerate(self.model_list):
             if idx == 0:
                 model_outputs, targets = self.validation(model)
             else:
@@ -198,9 +198,10 @@ class Trainer:
         final_outputs = torch.cat(final_outputs, dim=0)
         mean = final_outputs.mean(0).cpu().numpy()
         std = final_outputs.std(0).cpu().numpy()
-        metric = (((mean - targets) / std) ** 2 + np.log(2 * np.pi * std)).mean()
+        # metric = (((mean - targets) / std) ** 2 + np.log(2 * np.pi * std)).mean()
 
-        self.visualize_toy_dataset(mean, std)
+        if self.dataset == 'toy':
+            self.visualize_toy_dataset(mean, std)
         
         return mean, std
 

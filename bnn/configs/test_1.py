@@ -7,6 +7,7 @@ cfg = {
 
     'device': 'cpu',
     'model': {
+        'type': 'bnn',
         'name': 'MLP',
         'layers': [1, 100, 1],
         'log_std': (0,),
