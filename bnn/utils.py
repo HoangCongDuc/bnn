@@ -161,7 +161,7 @@ def setup_logger(logger_name, root, level=logging.INFO, screen=False, tofile=Fal
 
 def get_metric(task_name):
     if task_name == 'regression':
-        return mse
+        return nll
     else:
         return accuracy
 
@@ -174,7 +174,8 @@ def nll(targets, preds_mean, preds_std):
 def mse(targets, preds):
     return mean_squared_error(targets, preds, squared=False)
 
-def accuracy(targets, preds):
+def accuracy(targets, logits_mean, logits_std):
+    preds = np.argmax(logits_mean, axis=1)
     return accuracy_score(targets, preds)
 
 
