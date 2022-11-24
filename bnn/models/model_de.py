@@ -17,9 +17,13 @@ class SingleModel(nn.Module):
         else:
             assert(f"Do not support {cfg['model_name']}")
 
+        self.loss_name = cfg['loss']
+
         if cfg['loss'] == 'mse':
             self.loss = nn.MSELoss()
-        elif cfg['loss'] == 'softmax':
+        elif cfg['loss'] == 'bce':
+            self.loss = nn.BCELoss()
+        elif cfg['loss'] == 'ce':
             self.loss = nn.CrossEntropyLoss()
         elif cfg['loss'] == 'softplus':
             self.loss == nn.Softplus()
@@ -28,10 +32,15 @@ class SingleModel(nn.Module):
         else:
             assert(f"Do not support {cfg['loss']}")
 
-    def forward(self, inputs, targets):
+    def forward(self, inputs, targets=None):
         preds = self.model(inputs)
-        loss = self.loss(preds, targets)
-        return loss, preds
+        if self.loss_name == 'bce':
+            preds = F.sigmoid(preds)
+        if targets is not None:
+            loss = self.loss(preds, targets)
+            return loss, preds
+        else:
+            return 0, preds
 
 class MLP(nn.Module):
     """ Multilayer perceptron (MLP) with tanh/sigmoid activation functions implemented in PyTorch for regression tasks.
@@ -69,9 +78,6 @@ class MLP(nn.Module):
             module_list.append(nn.Linear(self.net_structure[i], self.net_structure[i+1]))
             if cfg['use_bn'] and i < len(self.net_structure) - 2:
                 module_list.append(nn.BatchNorm1d(self.net_structure[i+1]))
-            else:
-                module_list.append(nn.Identity())
-
         self.module_list = nn.ModuleList(module_list)
 
     def forward(self, x):

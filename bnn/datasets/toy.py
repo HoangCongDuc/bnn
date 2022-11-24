@@ -1,17 +1,12 @@
 
 from utils import worker_init_reset_seed
-
-import os
-from tkinter.messagebox import NO 
 import torch
 import numpy as np
-import pandas as pd
-
 import torch
 from sklearn.model_selection import train_test_split
 import torch.utils.data as torchdata
-from torchvision import transforms
-from torch.autograd import Variable
+from sklearn.datasets import make_moons
+
 import random 
 
 random.seed(42)
@@ -53,12 +48,41 @@ class ToyRegression(torchdata.Dataset):
         }
         return data
 
-def build_toy_loaders(args):
-    num_workers = args.num_workers
-    batch_size = args.batch_size
+class ToyClassification(torchdata.Dataset):
+    def __init__(self, x, y):
+        self.x = x
+        self.y = y
 
-    train_dataset = ToyRegression(size=2000, train=True)
-    valid_dataset = ToyRegression(size=50, train=False)
+    def toTensor(self, x):
+        return torch.from_numpy(np.asarray(x)).type(torch.FloatTensor)
+
+    def __len__(self):
+        return len(self.x)
+    
+    def __getitem__(self, index):
+        data = {
+            'inputs': self.toTensor(self.x[index]).unsqueeze(0),
+            'targets': self.toTensor(self.y[index]).unsqueeze(0)
+        }
+        return data
+
+def build_toy_loaders(cfg):
+    num_workers = cfg.num_workers
+    batch_size = cfg.batch_size
+    data_info = cfg.data_info
+
+    if cfg.task == 'regression':
+        train_dataset = ToyRegression(size=2000, train=True)
+        valid_dataset = ToyRegression(size=50, train=False)
+    else:
+        X, Y = make_moons(n_samples=data_info['total_size'], noise=0.1, random_state=42)
+        x_train, x_test, y_train, y_test = train_test_split(X, Y, train_size=data_info['train_size'], random_state=42)
+        train_dataset = ToyClassification(x=x_train,
+                                        y=y_train)
+
+        valid_dataset = ToyClassification(x=x_test,
+                                        y=y_test)
+        
     train_sampler = torchdata.SequentialSampler(train_dataset)
     valid_sampler = torchdata.SequentialSampler(valid_dataset)
 
@@ -68,8 +92,9 @@ def build_toy_loaders(args):
                         sampler=train_sampler,
                         num_workers=num_workers,
                         worker_init_fn=worker_init_reset_seed,
-                        drop_last=True
+                        drop_last=False
                         )
+
     valid_loader = torchdata.DataLoader(
                         valid_dataset,
                         batch_size,

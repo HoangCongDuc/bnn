@@ -3,11 +3,12 @@ from utils import *
 from models import build_model
 from datasets import build_uci_loaders, build_mnist_loaders, build_toy_loaders
 import os.path as osp
-import torch.functional as F
+import torch.nn.functional as F
 from utils import get_optimizer, get_scheduler
 from utils import get_timestamp, setup_logger
 from utils import nll
-from visualize import visualize_toy
+from visualize import visualize_toy_regression, visualize_toy_classification
+from scipy.stats import entropy
 # model returns KL and forward
 
 CHECKPOINT_PATH = 'checkpoints'
@@ -116,7 +117,7 @@ class Trainer:
             self.current_epoch += 1
         return model
 
-    def visualize_toy_dataset(self, mean, std):
+    def visualize_toy_reg(self, mean, std):
         x = []
         y = []
         for data in self.train_loader:
@@ -136,13 +137,87 @@ class Trainer:
         y_test = torch.cat(y_test, dim=0).cpu().numpy()
 
         save_name = osp.join(CHECKPOINT_PATH, self.exp_name, f'{self.exp_name}.png')
-        visualize_toy(x, 
+        visualize_toy_regression(x, 
                     y, 
                     x_test, 
                     y_test,
                     mean,
                     std,
                     save_name)
+
+    def visualize_toy_cls(self):
+        x = []
+        y = []
+        for data in self.train_loader:
+            x.append(data['inputs'])
+            y.append(data['targets'])
+        x = torch.cat(x, dim=0).squeeze(1).cpu().numpy()
+        y = torch.cat(y, dim=0).cpu().numpy()
+
+        x_test = []
+        y_test = []
+
+        for data in self.valid_loader:
+            x_test.append(data['inputs'])
+            y_test.append(data['targets'])
+
+        x_test = torch.cat(x_test, dim=0).squeeze(1).cpu().numpy()
+        y_test = torch.cat(y_test, dim=0).cpu().numpy()
+
+        X = np.concatenate([x, x_test])
+        Y = np.concatenate([y, y_test])
+
+        X0 = X[:, 0]
+        X1 = X[:, 1]
+
+        # Find the range of the 2 dimensions that we will plot
+        X0_min, X0_max = X0.min()-1, X0.max()+1
+        X1_min, X1_max = X1.min()-1, X1.max()+1
+
+        n_steps = 100 # Number of steps on each axis
+
+        # Create a meshgrid
+        # xx, yy = np.meshgrid(np.arange(X0_min, X0_max, (X0_max-X0_min)/n_steps),
+        #                     np.arange(X1_min, X1_max, (X1_max-X1_min)/n_steps))
+        x1_min = np.min(X[:, 0])
+        x1_max = np.max(X[:, 0])
+        x2_min = np.min(X[:, 1])
+        x2_max = np.max(X[:, 1])
+        x = np.arange(x1_min - 0.3, x1_max + 0.3, 0.01)
+        y = np.arange(x2_min - 0.3, x2_max + 0.3, 0.01)
+        xx, yy = np.meshgrid(x, y)
+
+        mesh_data = torch.from_numpy(np.c_[xx.ravel(), yy.ravel()])
+        mesh_data = mesh_data.type(torch.FloatTensor)
+
+        preds = []
+
+        for model in self.model_list:
+            _, model_preds = model(mesh_data)
+            model_preds = torch.squeeze(model_preds, dim=-1)
+            model_preds = torch.unsqueeze(model_preds, 0)
+            preds.append(model_preds)
+
+        preds = torch.cat(preds, dim=0)
+        preds_proba_1 = preds.mean(0).detach()
+        # preds = preds_proba_1 > 0.5
+        # ent = preds
+        preds_proba_0 = 1 - preds_proba_1
+
+        # print(np.c_[preds_proba_0, preds_proba_1].shape)
+
+        ent = entropy(np.c_[preds_proba_0, preds_proba_1], axis=1) 
+        ent = ent.reshape(xx.shape)
+
+        save_name = osp.join(CHECKPOINT_PATH, self.exp_name, f'{self.exp_name}.png')
+
+
+        visualize_toy_classification(xx=xx, 
+                                    yy=yy, 
+                                    X=X, 
+                                    Y=Y, 
+                                    entropy=ent, 
+                                    save_path=save_name)    
     
     def train_one_epoch(self, model, optimizer):
         model.train()
@@ -154,7 +229,6 @@ class Trainer:
             data['inputs'] = data['inputs'].to(self.device)
             
             data['targets'] = data['targets'].to(self.device)
-            
             
             nll_loss, _ = model(data['inputs'], data['targets']) 
             hist_loss += nll_loss.item() 
@@ -185,14 +259,13 @@ class Trainer:
             targets.append(data['targets'])
         outputs = torch.cat(outputs, dim=0).unsqueeze(0)
         targets = torch.cat(targets, dim=0)
-        targets = targets.cpu().numpy()
-
         return outputs, targets
     
     def train_models(self):
         for idx, model in enumerate(self.model_list):
             self.logger.info(f"Training model {idx}")
             optimizer, scheduler = self.create_optimizer(model, self.cfg)
+            print(optimizer.state_dict())
             model = self.train_one_model(model, optimizer, scheduler)
             self.model_list[idx] = model
         self.ensemble()
@@ -204,26 +277,31 @@ class Trainer:
                 model_outputs, targets = self.validation(model)
             else:
                 model_outputs, _ = self.validation(model)
+            print(model_outputs.shape)
             final_outputs.append(model_outputs)
         final_outputs = torch.cat(final_outputs, dim=0)
-        preds_mean = final_outputs.mean(0).cpu().numpy()
-        preds_std = final_outputs.std(0).cpu().numpy()
+        preds_mean = final_outputs.mean(0)
+        preds_std = final_outputs.std(0)
 
         
         if self.task == 'regression':
-            nll_loss = nll(targets, preds_mean, preds_std)
-            metric = self.metric(targets, preds_mean)
+            nll_loss = nll(targets, preds_mean.cpu().numpy(), preds_std.cpu().numpy())
+            metric = self.metric(targets, preds_mean.cpu().numpy())
             self.logger.info(f"MSE: {metric} - NLL: {nll_loss}")
+            if self.dataset == 'toy':
+                self.visualize_toy_reg(preds_mean, preds_std)
         else:
-            pass
-            # f_nll_loss = torch.nn.NLLLoss()
-            # f_log_softmax = torch.nn
-            # nll_loss = f_nll_loss(F.log_softmax(preds_mean, dim=1), targets)
-            # metric = self.metric(targets, preds_mean)
-            # self.logger.info(f"Accuracy: {metric} - NLL: {nll_loss}")
+            if self.cfg.model['loss'] == 'bce':
+                metric = torch.sum(preds_mean > 0.5).item()
+            else:    
+                _ , preds = torch.max(preds_mean, dim=1)
+                metric = torch.sum(targets==preds).item()
+            nll_loss = 0
+            self.logger.info(f"Accuracy: {metric}")
+            if self.dataset == 'toy':
+                self.visualize_toy_cls()
         
-        if self.dataset == 'toy':
-            self.visualize_toy_dataset(preds_mean, preds_std)
+        
         
         return metric, nll_loss, preds_mean, preds_std
 
