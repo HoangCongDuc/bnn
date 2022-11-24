@@ -177,8 +177,15 @@ class Trainer:
         n_steps = 100 # Number of steps on each axis
 
         # Create a meshgrid
-        xx, yy = np.meshgrid(np.arange(X0_min, X0_max, (X0_max-X0_min)/n_steps),
-                            np.arange(X1_min, X1_max, (X1_max-X1_min)/n_steps))
+        # xx, yy = np.meshgrid(np.arange(X0_min, X0_max, (X0_max-X0_min)/n_steps),
+        #                     np.arange(X1_min, X1_max, (X1_max-X1_min)/n_steps))
+        x1_min = np.min(X[:, 0])
+        x1_max = np.max(X[:, 0])
+        x2_min = np.min(X[:, 1])
+        x2_max = np.max(X[:, 1])
+        x = np.arange(x1_min - 0.3, x1_max + 0.3, 0.01)
+        y = np.arange(x2_min - 0.3, x2_max + 0.3, 0.01)
+        xx, yy = np.meshgrid(x, y)
 
         mesh_data = torch.from_numpy(np.c_[xx.ravel(), yy.ravel()])
         mesh_data = mesh_data.type(torch.FloatTensor)
@@ -193,9 +200,11 @@ class Trainer:
 
         preds = torch.cat(preds, dim=0)
         preds_proba_1 = preds.mean(0).detach()
+        # preds = preds_proba_1 > 0.5
+        # ent = preds
         preds_proba_0 = 1 - preds_proba_1
 
-        print(np.c_[preds_proba_0, preds_proba_1].shape)
+        # print(np.c_[preds_proba_0, preds_proba_1].shape)
 
         ent = entropy(np.c_[preds_proba_0, preds_proba_1], axis=1) 
         ent = ent.reshape(xx.shape)
@@ -256,6 +265,7 @@ class Trainer:
         for idx, model in enumerate(self.model_list):
             self.logger.info(f"Training model {idx}")
             optimizer, scheduler = self.create_optimizer(model, self.cfg)
+            print(optimizer.state_dict())
             model = self.train_one_model(model, optimizer, scheduler)
             self.model_list[idx] = model
         self.ensemble()

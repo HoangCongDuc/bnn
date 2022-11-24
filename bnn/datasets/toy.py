@@ -49,18 +49,10 @@ class ToyRegression(torchdata.Dataset):
         return data
 
 class ToyClassification(torchdata.Dataset):
-    def __init__(self, size, total_size, train=True):
-        X, Y = make_moons(n_samples=total_size, noise=0.1)
-        x_train, x_test, y_train, y_test = train_test_split(X, Y, train_size=size, random_state=42)
-        if train:
-            self.x = x_train
-            self.y = y_train
-        else:
-            self.x = x_test
-            self.y = y_test
+    def __init__(self, x, y):
+        self.x = x
+        self.y = y
 
-        # self.Var = lambda x, dtype=torch.FloatTensor: Variable(torch.from_numpy(x).type(dtype)) #converting data to tensor
-    
     def toTensor(self, x):
         return torch.from_numpy(np.asarray(x)).type(torch.FloatTensor)
 
@@ -83,14 +75,14 @@ def build_toy_loaders(cfg):
         train_dataset = ToyRegression(size=2000, train=True)
         valid_dataset = ToyRegression(size=50, train=False)
     else:
-        
-        train_dataset = ToyClassification(size=data_info['train_size'], 
-                                        total_size=data_info['total_size'], 
-                                        train=True)
-        valid_dataset = ToyClassification(size=data_info['valid_size'], 
-                                        total_size=data_info['total_size'], 
-                                        train=False)
+        X, Y = make_moons(n_samples=data_info['total_size'], noise=0.1, random_state=42)
+        x_train, x_test, y_train, y_test = train_test_split(X, Y, train_size=data_info['train_size'], random_state=42)
+        train_dataset = ToyClassification(x=x_train,
+                                        y=y_train)
 
+        valid_dataset = ToyClassification(x=x_test,
+                                        y=y_test)
+        
     train_sampler = torchdata.SequentialSampler(train_dataset)
     valid_sampler = torchdata.SequentialSampler(valid_dataset)
 
@@ -100,7 +92,7 @@ def build_toy_loaders(cfg):
                         sampler=train_sampler,
                         num_workers=num_workers,
                         worker_init_fn=worker_init_reset_seed,
-                        drop_last=True
+                        drop_last=False
                         )
 
     valid_loader = torchdata.DataLoader(

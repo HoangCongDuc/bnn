@@ -78,9 +78,6 @@ class MLP(nn.Module):
             module_list.append(nn.Linear(self.net_structure[i], self.net_structure[i+1]))
             if cfg['use_bn'] and i < len(self.net_structure) - 2:
                 module_list.append(nn.BatchNorm1d(self.net_structure[i+1]))
-            else:
-                module_list.append(nn.Identity())
-
         self.module_list = nn.ModuleList(module_list)
 
     def forward(self, x):

@@ -68,7 +68,7 @@ def get_optimizer(model, args):
         optimizer_function = optim.Adam
         kwargs = {
             'betas': (0.9, 0.999),
-            'eps': 1e-08
+            'eps': 1e-8
         }
     elif args.optimizer == 'RMSprop':
         optimizer_function = optim.RMSprop
