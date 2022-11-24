@@ -35,7 +35,7 @@ class SingleModel(nn.Module):
     def forward(self, inputs, targets=None):
         preds = self.model(inputs)
         if self.loss_name == 'bce':
-            preds = F.sigmoid(preds)
+            preds = F.sigmoid(preds).squeeze(1)
         if targets is not None:
             loss = self.loss(preds, targets)
             return loss, preds

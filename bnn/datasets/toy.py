@@ -62,7 +62,7 @@ class ToyClassification(torchdata.Dataset):
     def __getitem__(self, index):
         data = {
             'inputs': self.toTensor(self.x[index]).unsqueeze(0),
-            'targets': self.toTensor(self.y[index]).unsqueeze(0)
+            'targets': self.toTensor(self.y[index])
         }
         return data
 

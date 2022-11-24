@@ -230,6 +230,7 @@ class Trainer:
             
             data['targets'] = data['targets'].to(self.device)
             
+            model.zero_grad()
             nll_loss, _ = model(data['inputs'], data['targets']) 
             hist_loss += nll_loss.item() 
             nll_loss.backward()
@@ -292,7 +293,8 @@ class Trainer:
                 self.visualize_toy_reg(preds_mean, preds_std)
         else:
             if self.cfg.model['loss'] == 'bce':
-                metric = torch.sum(preds_mean > 0.5).item()
+                # import ipdb; ipdb.set_trace()
+                metric = torch.sum((preds_mean > 0.5) == targets).item()
             else:    
                 _ , preds = torch.max(preds_mean, dim=1)
                 metric = torch.sum(targets==preds).item()

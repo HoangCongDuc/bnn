@@ -2,7 +2,7 @@ cfg = {
     'model_path':'./weights/',
     'data_path':'./data/',
 
-    'exp_name': 'deep_ensemble_toys_cls',
+    'exp_name': 'deep_ensemble_toys_cls_1model',
     'device': 'cpu', 
     'filter_warnings': True,
 
@@ -21,7 +21,7 @@ cfg = {
         'type': 'de',
         'name': 'MLP',
         'loss': 'bce',
-        'n_models': 5,
+        'n_models': 1,
         'use_bn': False,
         'act': 'relu',
         'flatten': True,
@@ -34,9 +34,9 @@ cfg = {
     
     'optimizer': "ADAM",
     'decay_type': 'step',
-    'lr_decay': 100,
+    'lr_decay': 200,
     'gamma': 0.1, 
-    'weight_decay': 0.3,
+    'weight_decay': 0,
     'weight_decay_bias': 0.0,
     'eps': 1e-8,
     'lr': 0.001,
